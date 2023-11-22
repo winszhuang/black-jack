@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"black-jack/handler"
 	"black-jack/utils"
 	"encoding/json"
 	"log"
@@ -103,11 +102,11 @@ func (c *Client) readPump() {
 
 		switch req.MsgCode {
 		case Start:
-			handler.OnStart(c)
+			OnStart(c)
 		case Hit:
-			handler.OnHit(c)
+			OnHit(c)
 		case Stand:
-			handler.OnStand(c)
+			OnStand(c)
 		}
 	}
 }

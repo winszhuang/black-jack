@@ -1,7 +1,6 @@
 package main
 
 import (
-	"black-jack/game"
 	"black-jack/ws"
 	"flag"
 	"log"
@@ -25,7 +24,6 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	game.Init()
 	hub := ws.NewHub()
 	go hub.Run()
 
