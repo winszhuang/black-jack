@@ -1,9 +1,11 @@
 package main
 
 import (
+	game "black-jack/game"
 	"black-jack/ws"
 	"flag"
 	"log"
+	"math/rand"
 	"net/http"
 )
 
@@ -24,12 +26,13 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	hub := ws.NewHub()
-	go hub.Run()
+	cardDealer := game.NewCardDealer(rand.New(rand.NewSource(486486486213548)))
+	gameEngine := ws.NewGame(cardDealer)
+	go gameEngine.Run()
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		ws.ServeWs(hub, w, r)
+		ws.ServeWs(gameEngine, w, r)
 	})
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

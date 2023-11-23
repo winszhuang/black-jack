@@ -21,7 +21,7 @@ func SendSuccessRes(c *Client, msgCode MsgCode, data interface{}, message string
 }
 
 func BroadcastErrRes(c *Client, msgCode MsgCode, errorCode WSError, message string) {
-	c.Hub.Broadcast(WSResponse{
+	c.Game.Broadcast(WSResponse{
 		MsgCode:   msgCode,
 		Data:      nil,
 		Success:   false,
@@ -31,7 +31,7 @@ func BroadcastErrRes(c *Client, msgCode MsgCode, errorCode WSError, message stri
 }
 
 func BroadcastSuccessRes(c *Client, msgCode MsgCode, data interface{}, message string) {
-	c.Hub.Broadcast(WSResponse{
+	c.Game.Broadcast(WSResponse{
 		MsgCode:   msgCode,
 		Data:      data,
 		Success:   true,

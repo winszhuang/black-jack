@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"black-jack/game"
 	"black-jack/utils"
 	"encoding/json"
 	"log"
@@ -37,9 +38,9 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Client is a middleman between the websocket connection and the Hub.
+// Client is a middleman between the websocket connection and the Game.
 type Client struct {
-	Hub *Hub
+	Game *Game
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -49,16 +50,46 @@ type Client struct {
 
 	// user ID
 	ID string
+
+	// user game data
+	playInfo *PlayInfo
 }
 
-// readPump pumps messages from the websocket connection to the Hub.
+type PlayInfo struct {
+	deck         game.Deck
+	currentState UserState
+}
+
+type UserState int
+
+const (
+	_ UserState = iota
+	Wait
+	Ready
+	Play
+	Stop
+	End
+)
+
+func NewPlayInfo() *PlayInfo {
+	u := &PlayInfo{}
+	u.Init()
+	return u
+}
+
+func (u *PlayInfo) Init() {
+	u.deck = make(game.Deck, 10)
+	u.currentState = Wait
+}
+
+// readPump pumps messages from the websocket connection to the Game.
 //
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.Hub.unregister <- c
+		c.Game.unregister <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -91,12 +122,12 @@ func (c *Client) readPump() {
 		}
 
 		switch req.MsgCode {
-		case Start:
-			OnStart(c)
-		case Hit:
-			OnHit(c)
-		case Stand:
-			OnStand(c)
+		case SomeOneReady:
+			c.Game.RequestReady(c)
+		case SomeOneHit:
+			c.Game.RequestHit(c)
+		case SomeOneStand:
+			c.Game.RequestStand(c)
 		}
 	}
 }
@@ -105,7 +136,7 @@ func (c *Client) GetConn() *websocket.Conn {
 	return c.conn
 }
 
-// writePump pumps messages from the Hub to the websocket connection.
+// writePump pumps messages from the Game to the websocket connection.
 //
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
@@ -121,7 +152,7 @@ func (c *Client) writePump() {
 		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// The Hub closed the channel.
+				// The Game closed the channel.
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -156,7 +187,7 @@ func (c *Client) Write(data []byte) {
 }
 
 // ServeWs handles websocket requests from the peer.
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func ServeWs(game *Game, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -165,19 +196,14 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	clientID := utils.RandomPlayerName()
 	client := &Client{
-		Hub:  hub,
-		conn: conn,
-		send: make(chan []byte, 256),
-		ID:   clientID,
+		Game:     game,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		ID:       clientID,
+		playInfo: NewPlayInfo(),
 	}
-	client.Hub.register <- client
-	go client.Write(WSResponse{
-		MsgCode:   0,
-		Data:      clientID,
-		Success:   true,
-		ErrorCode: 0,
-		Message:   "成功連線 獲取唯一識別ID",
-	}.Byte())
+
+	client.Game.NewClient(client)
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

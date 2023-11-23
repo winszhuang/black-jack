@@ -6,12 +6,22 @@ type MsgCode int
 
 const (
 	Null MsgCode = iota
+	// 某玩家進入遊戲
+	SomeOneJoin
+	// 某玩家離開遊戲
+	SomeOneLeave
+	// 某玩家按下準備
+	SomeOneReady
 	// 遊戲開始
-	Start
+	GameStart
 	// 玩家要牌
-	Hit
-	// 玩家停牌
-	Stand
+	SomeOneHit
+	// 玩家停止要牌
+	SomeOneStand
+
+	GameOver
+
+	UpdatePlayersDetail
 
 	UpdateAllDecks
 )
