@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+const DealerPlayerID = "dealerPlayer"
+
 type Game struct {
 	mu          sync.Mutex // 用於鎖定並發操作的互斥鎖
 	dealer      *CardDealer
@@ -13,15 +15,12 @@ type Game struct {
 }
 
 func NewGame(dealer *CardDealer) *Game {
-	game := &Game{
+	return &Game{
 		dealer:      dealer,
 		players:     make(map[string]*Player),
 		mu:          sync.Mutex{},
 		isGameStart: false,
 	}
-
-	game.Init()
-	return game
 }
 
 func (g *Game) IsGameStart() bool {
@@ -31,6 +30,9 @@ func (g *Game) IsGameStart() bool {
 func (g *Game) Init() {
 	g.dealer.InitializeDeck()
 	g.dealer.ShuffleDeck()
+	// 初始化莊家
+	g.AddPlayer(DealerPlayerID)
+	g.isGameStart = true
 }
 
 func (g *Game) AddPlayer(playerID string) {
@@ -90,4 +92,20 @@ func (g *Game) DealCardToPlayer(playerID string) error {
 
 	player.AddCard(card)
 	return nil
+}
+
+func (g *Game) IsPlayerEndTurn(playerID string) bool {
+	player, _ := g.getPlayer(playerID)
+	return player.IsActionStopped()
+}
+
+func (g *Game) StopPlayerAction(playerID string) {
+	player, _ := g.getPlayer(playerID)
+	player.EndTurn()
+}
+
+func (g *Game) CalculatePlayerCardsPoint(playerID string) int {
+	player, _ := g.getPlayer(playerID)
+	return player.CalculateCardsPoint()
+
 }

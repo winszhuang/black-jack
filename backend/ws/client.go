@@ -89,16 +89,6 @@ func (c *Client) readPump() {
 			}.Byte())
 			continue
 		}
-		if req.Data == nil {
-			c.Write(WSResponse{
-				MsgCode:   0,
-				Data:      nil,
-				Success:   false,
-				ErrorCode: ErrForRequestNoData,
-				Message:   "data不可為空",
-			}.Byte())
-			continue
-		}
 
 		switch req.MsgCode {
 		case Start:

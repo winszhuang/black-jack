@@ -9,4 +9,5 @@ const (
 	ErrForServerError
 	ErrForDealCard
 	ErrForGetAllPlayerCards
+	ErrForWrongFlow
 )
