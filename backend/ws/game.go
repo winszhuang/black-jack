@@ -7,6 +7,7 @@ import (
 )
 
 const MaxPoint = 21
+const DealerClientID = "dealer"
 
 // Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -45,25 +46,19 @@ type Game struct {
 func NewGame(cardDealer *game.CardDealer) *Game {
 	g := &Game{
 		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		ready:      make(chan *Client),
-		hit:        make(chan *Client),
-		stand:      make(chan *Client),
+		register:   make(chan *Client, 30),
+		unregister: make(chan *Client, 30),
+		ready:      make(chan *Client, 30),
+		hit:        make(chan *Client, 30),
+		stand:      make(chan *Client, 30),
 		start:      make(chan interface{}),
 		end:        make(chan interface{}),
 		clients:    orderedmap.New[*Client, bool](),
 		cardDealer: cardDealer,
 	}
 	// 創建一個莊家
-	dealerClient := &Client{
-		Game:     g,
-		conn:     nil,
-		send:     nil,
-		ID:       "dealer",
-		playInfo: NewPlayInfo(),
-	}
-	g.NewClient(dealerClient)
+	g.newDealerClient()
+	g.Restart()
 	return g
 }
 
@@ -71,6 +66,11 @@ func (g *Game) Run() {
 	go g.listenChanReceive()
 	go g.checkGameFlow()
 	go g.listenBroadcast()
+}
+
+func (g *Game) newDealerClient() {
+	dealerClient := NewClient(g, nil, DealerClientID)
+	g.clients.Set(dealerClient, true)
 }
 
 func (g *Game) listenChanReceive() {
@@ -90,12 +90,17 @@ func (g *Game) listenChanReceive() {
 			g.onGameStart()
 		case <-g.end:
 			g.onGameEnd()
+			//default:
 		}
 	}
 }
 
 func (g *Game) checkGameFlow() {
 	for {
+		if g.isAllPlayerReadyExceptDealer() {
+			g.ready <- g.getClient(DealerClientID)
+		}
+
 		if g.isGameStart() {
 			g.start <- true
 		}
@@ -164,7 +169,7 @@ func (g *Game) NewClient(client *Client) {
 func (g *Game) onRegister(c *Client) {
 	g.clients.Set(c, true)
 	SendSuccessRes(c, SomeOneJoin, c.ID, fmt.Sprintf("你好 以下提供給你專屬ID"))
-	BroadcastSuccessRes(c, SomeOneJoin, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家進入遊戲"))
+	BroadcastSuccessRes(c, SomeOneJoin, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家進入遊戲", c.ID))
 }
 
 func (g *Game) onUnRegister(c *Client) {
@@ -173,7 +178,7 @@ func (g *Game) onUnRegister(c *Client) {
 		close(c.send)
 	}
 
-	BroadcastSuccessRes(c, SomeOneLeave, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家離開遊戲"))
+	BroadcastSuccessRes(c, SomeOneLeave, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家離開遊戲", c.ID))
 }
 
 type ClientDetail struct {
@@ -272,7 +277,7 @@ func (g *Game) onHit(c *Client) {
 	}
 
 	// 廣撥給所有玩家
-	BroadcastSuccessRes(c, SomeOneHit, result, fmt.Sprintf("ID-%s玩家獲得新牌"))
+	BroadcastSuccessRes(c, SomeOneHit, result, fmt.Sprintf("ID-%s玩家獲得新牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 }
 
@@ -293,7 +298,7 @@ func (g *Game) onStand(c *Client) {
 	c.playInfo.currentState = Stop
 
 	// 廣撥給所有玩家
-	BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ID-%s玩家停止要牌"))
+	BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ID-%s玩家停止要牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 }
 
@@ -358,4 +363,33 @@ func (g *Game) RequestHit(c *Client) {
 
 func (g *Game) RequestStand(c *Client) {
 	g.stand <- c
+}
+
+func (g *Game) isAllPlayerReadyExceptDealer() bool {
+	playerCount := g.clients.Len() - 1
+	if playerCount == 0 {
+		return false
+	}
+
+	var list []bool
+	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+		client := pair.Key
+		if client.ID == DealerClientID {
+			continue
+		}
+		if client.playInfo.currentState == Ready {
+			list = append(list, true)
+		}
+	}
+	return len(list) == playerCount
+}
+
+func (g *Game) getClient(clientID string) *Client {
+	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+		client := pair.Key
+		if client.ID == clientID {
+			return client
+		}
+	}
+	return nil
 }

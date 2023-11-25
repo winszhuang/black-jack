@@ -55,6 +55,16 @@ type Client struct {
 	playInfo *PlayInfo
 }
 
+func NewClient(game *Game, conn *websocket.Conn, ID string) *Client {
+	return &Client{
+		Game:     game,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		ID:       ID,
+		playInfo: NewPlayInfo(),
+	}
+}
+
 type PlayInfo struct {
 	deck         game.Deck
 	currentState UserState
@@ -78,7 +88,7 @@ func NewPlayInfo() *PlayInfo {
 }
 
 func (u *PlayInfo) Init() {
-	u.deck = make(game.Deck, 10)
+	u.deck = make(game.Deck, 0)
 	u.currentState = Wait
 }
 
@@ -194,16 +204,8 @@ func ServeWs(game *Game, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID := utils.RandomPlayerName()
-	client := &Client{
-		Game:     game,
-		conn:     conn,
-		send:     make(chan []byte, 256),
-		ID:       clientID,
-		playInfo: NewPlayInfo(),
-	}
-
-	client.Game.NewClient(client)
+	client := NewClient(game, conn, utils.RandomPlayerName())
+	game.NewClient(client)
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
