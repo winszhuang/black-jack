@@ -99,7 +99,7 @@ func (u *PlayInfo) Init() {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.Game.unregister <- c
+		c.Game.OnUnRegister(c)
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -133,11 +133,11 @@ func (c *Client) readPump() {
 
 		switch req.MsgCode {
 		case SomeOneReady:
-			c.Game.RequestReady(c)
+			c.Game.OnReady(c)
 		case SomeOneHit:
-			c.Game.RequestHit(c)
+			c.Game.OnHit(c)
 		case SomeOneStand:
-			c.Game.RequestStand(c)
+			c.Game.OnStand(c)
 		}
 	}
 }
@@ -205,7 +205,7 @@ func ServeWs(game *Game, w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := NewClient(game, conn, utils.RandomPlayerName())
-	game.NewClient(client)
+	client.Game.OnRegister(client)
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

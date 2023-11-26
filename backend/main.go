@@ -28,7 +28,6 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	cardDealer := game.NewCardDealer(rand.New(rand.NewSource(486486486213548)))
 	gameEngine := ws.NewGame(cardDealer)
-	go gameEngine.Run()
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
