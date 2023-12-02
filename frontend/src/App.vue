@@ -1,4 +1,42 @@
 <script setup lang="ts">
+import PlayerZone from './components/PlayerZone.vue'
+import { ECard } from './constants/card'
+
+const me = 'jiljiljil'
+
+type PlayerData = {
+  userId: string,
+  name: string,
+  cards: Card[]
+}
+
+const players: PlayerData[] = [
+  {
+    userId: 'jiljiljil',
+    name: 'wins',
+    cards: [
+      { type: ECard.AC, value: 11 }
+    ]
+  },
+  {
+    userId: 'opilhilj',
+    name: 'tina',
+    cards: [
+      { type: ECard._4S, value: 4 }
+    ]
+  },
+  {
+    userId: 'whukhui',
+    name: 'reg',
+    cards: [
+      { type: ECard._5H, value: 5 }
+    ]
+  }
+]
+
+// import Card from '@/components/Card.vue'
+// import { ECard } from '@/constants/card.ts'
+
 </script>
 
 <template>
@@ -6,25 +44,20 @@
     <div class="main">
         <h2><span id="command">Gambling Time</span></h2>
         <div class="row1">
-            <div id="dealer-box">
-                <h2>Dealer: <span id="dealerscore">0</span></h2>
-            </div>
-            <div id="ihjiljiljil">
-                <h2>You: 
-                    <span id="yourscore">0</span>
-                    <div id="your-box" class="flex flex-wrap">
-
-                    </div>
-                </h2>
-            </div>
-            <div id="test">
-                <h2>You: <span id="testscore">0</span></h2>
-            </div>
+            <PlayerZone
+                v-for="player in players"
+                :key="player.userId"
+                :user-id="player.userId"
+                :name="player.name"
+                :cards="player.cards"
+                :is-me="player.userId === me"
+            >
+            </PlayerZone>
         </div>
         <div class="row2">
             <div class="buttons">
                 <button class="btn-lg btn-danger" id="deal" onmouseover="tink.play()">Ready</button>
-                <button class="btn-lg btn-success" id="hit" onmouseover="tink.play()" > Hit </button> 
+                <button class="btn-lg btn-success" id="hit" onmouseover="tink.play()" > Hit </button>
                 <button class="btn-lg btn-warning" id="stand" onmouseover="tink.play()">Stand</button>
             </div>
         </div>
