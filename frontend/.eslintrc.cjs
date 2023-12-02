@@ -8,6 +8,7 @@ module.exports = {
     'eslint:recommended',
     '@vue/typescript/recommended',
     'plugin:vue/vue3-essential',
+    '@vue/prettier',
     '@vue/standard'
   ],
   parserOptions: {
@@ -24,7 +25,8 @@ module.exports = {
     'import/named': 'off',
     'no-unused-vars': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
-    'vue/multi-word-component-names': 'off'
+    'vue/multi-word-component-names': 'off',
+    'prettier/prettier': 0
     // 這邊可以自訂規則
   }
 }
