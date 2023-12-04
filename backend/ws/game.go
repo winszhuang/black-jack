@@ -60,7 +60,7 @@ func (g *Game) checkAllReadyToStart() {
 		dealer.playInfo.currentState = Ready
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(dealer, SomeOneReady, dealer.ID, fmt.Sprintf("ID-%s莊家已經按下準備", dealer.ID))
+		BroadcastSuccessRes(dealer, SomeOneReady, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經按下準備", dealer.ID))
 		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 		// 開始遊戲
@@ -74,7 +74,7 @@ func (g *Game) checkPlayerCrashPointThenStop(c *Client) {
 		c.playInfo.currentState = Stop
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ID-%s玩家已經停止動作", c.ID))
+		BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ClientID-%s玩家已經停止動作", c.ID))
 		BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 	}
 }
@@ -133,26 +133,6 @@ func (g *Game) Broadcast(data []byte) {
 	g.mu.Unlock()
 }
 
-func (g *Game) OnRegister(c *Client) {
-	g.mu.Lock()
-	g.clients.Set(c, true)
-	g.mu.Unlock()
-
-	SendSuccessRes(c, SomeOneJoin, c.ID, fmt.Sprintf("你好 以下提供給你專屬ID"))
-	BroadcastSuccessRes(c, SomeOneJoin, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家進入遊戲", c.ID))
-}
-
-func (g *Game) OnUnRegister(c *Client) {
-	g.mu.Lock()
-	if _, ok := g.clients.Get(c); ok {
-		g.clients.Delete(c)
-		close(c.send)
-	}
-	g.mu.Unlock()
-
-	BroadcastSuccessRes(c, SomeOneLeave, g.getAllClientDetail(), fmt.Sprintf("ID-%s玩家離開遊戲", c.ID))
-}
-
 type ClientDetail struct {
 	ID    string    `json:"id"`
 	Deck  game.Deck `json:"deck"`
@@ -178,24 +158,6 @@ func (g *Game) getAllClientDetail() []ClientDetail {
 
 type ReadyNotification struct {
 	ID string `json:"id"`
-}
-
-func (g *Game) OnReady(c *Client) {
-	g.mu.Lock()
-	notWaiting := c.playInfo.currentState > Wait
-	if notWaiting {
-		SendErrRes(c, SomeOneReady, ErrForWrongFlow, "錯誤的流程")
-		g.mu.Unlock()
-		return
-	}
-
-	c.playInfo.currentState = Ready
-	g.mu.Unlock()
-
-	BroadcastSuccessRes(c, SomeOneReady, c.ID, fmt.Sprintf("ID-%s玩家已經按下準備", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
-
-	g.checkAllReadyToStart()
 }
 
 func (g *Game) isAllPlayerSameState(state UserState) bool {
@@ -230,66 +192,6 @@ func (g *Game) findSomeOneCrashPoint() (*Client, bool) {
 	return nil, false
 }
 
-type NewCardInfo struct {
-	ID       string    `json:"id"`
-	CardInfo game.Card `json:"cardInfo"`
-}
-
-func (g *Game) OnHit(c *Client) {
-	g.mu.Lock()
-	notPlaying := c.playInfo.currentState != Play
-	if notPlaying {
-		SendErrRes(c, SomeOneHit, ErrForWrongFlow, "錯誤的流程")
-		g.mu.Unlock()
-		return
-	}
-
-	// 發牌
-	card, err := g.cardDealer.DealCard()
-	if err != nil {
-		SendErrRes(c, SomeOneHit, ErrForServerError, "伺服器問題 - 發牌錯誤")
-		g.mu.Unlock()
-		panic(err)
-		return
-	}
-
-	// 更新牌給該玩家
-	c.playInfo.deck = c.playInfo.deck.AddCard(card)
-	g.mu.Unlock()
-
-	result := NewCardInfo{
-		ID:       c.ID,
-		CardInfo: card,
-	}
-
-	// 廣撥給所有玩家
-	BroadcastSuccessRes(c, SomeOneHit, result, fmt.Sprintf("ID-%s玩家獲得新牌", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
-
-	g.checkPlayerCrashPointThenStop(c)
-	g.checkAllStopToEnd()
-}
-
-func (g *Game) OnStand(c *Client) {
-	g.mu.Lock()
-	notPlaying := c.playInfo.currentState != Play
-	if notPlaying {
-		g.mu.Unlock()
-		SendErrRes(c, SomeOneStand, ErrForWrongFlow, "錯誤的流程")
-		return
-	}
-
-	// 更新玩家狀態
-	c.playInfo.currentState = Stop
-	g.mu.Unlock()
-
-	// 廣撥給所有玩家
-	BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ID-%s玩家停止要牌", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
-
-	g.checkAllStopToEnd()
-}
-
 func (g *Game) buildAllPlayerCards() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -308,42 +210,6 @@ func (g *Game) buildAllPlayerCards() error {
 		client.playInfo.deck = client.playInfo.deck.AddCard(card2)
 	}
 	return nil
-}
-
-func (g *Game) onGameStart() {
-	g.updateAllPlayerState(Play)
-	err := g.buildAllPlayerCards()
-	if err != nil {
-		panic(err)
-	}
-
-	g.Broadcast(WSResponse{
-		MsgCode:   GameStart,
-		Data:      true,
-		Success:   true,
-		ErrorCode: 0,
-		Message:   "遊戲開始!!",
-	}.Byte())
-	g.Broadcast(WSResponse{
-		MsgCode:   UpdatePlayersDetail,
-		Data:      g.getAllClientDetail(),
-		Success:   true,
-		ErrorCode: 0,
-		Message:   "更新所有玩家資料",
-	}.Byte())
-}
-
-func (g *Game) onGameEnd() {
-	winner := g.calculateFinalWinner()
-	g.updateAllPlayerState(End)
-
-	g.Broadcast(WSResponse{
-		MsgCode:   GameOver,
-		Data:      winner,
-		Success:   true,
-		ErrorCode: 0,
-		Message:   fmt.Sprintf("ID-%s玩家獲得勝利", winner.ID),
-	}.Byte())
 }
 
 func (g *Game) isAllPlayerSameStateExceptDealer(state UserState) bool {
@@ -396,7 +262,7 @@ func (g *Game) checkAllStopToEnd() {
 		dealer.playInfo.currentState = Stop
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(dealer, SomeOneStand, dealer.ID, fmt.Sprintf("ID-%s莊家已經停止動作", dealer.ID))
+		BroadcastSuccessRes(dealer, SomeOneStand, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經停止動作", dealer.ID))
 		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 		// 結束遊戲

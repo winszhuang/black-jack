@@ -5,7 +5,7 @@ import "encoding/json"
 type MsgCode int
 
 const (
-	Null MsgCode = iota
+	_ MsgCode = iota
 	// 某玩家進入遊戲
 	SomeOneJoin
 	// 某玩家離開遊戲
@@ -18,12 +18,11 @@ const (
 	SomeOneHit
 	// 玩家停止要牌
 	SomeOneStand
-
+	// 遊戲結束
 	GameOver
 
+	// 更新所有玩家資訊
 	UpdatePlayersDetail
-
-	UpdateAllDecks
 )
 
 type WSRequest struct {
