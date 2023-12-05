@@ -1,5 +1,5 @@
 export enum ECard {
-    _2C = '2C',
+  _2C = '2C',
   _3C = '3C',
   _4C = '4C',
   _5C = '5C',
@@ -50,5 +50,5 @@ export enum ECard {
   KS = 'KS',
   QS = 'QS',
   JS = 'JS',
-  AS = 'AS',
+  AS = 'AS'
 }

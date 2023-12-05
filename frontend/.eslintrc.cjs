@@ -26,7 +26,8 @@ module.exports = {
     'no-unused-vars': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
     'vue/multi-word-component-names': 'off',
-    'prettier/prettier': 0
+    'space-before-function-paren': 'off',
+    '@typescript-eslint/no-explicit-any': 'off'
     // 這邊可以自訂規則
   }
 }

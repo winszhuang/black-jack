@@ -1,4 +1,4 @@
 interface Card {
-    type: import('@/constants/card').ECard,
-    value: number
+  type: import('@/enums/card').ECard
+  value: number
 }
