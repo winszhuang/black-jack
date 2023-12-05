@@ -99,7 +99,7 @@ func (u *PlayInfo) Init() {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.Game.OnUnRegister(c)
+		c.Game.OnLeave(c)
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -132,11 +132,11 @@ func (c *Client) readPump() {
 		}
 
 		switch req.MsgCode {
-		case SomeOneReady:
+		case OneReady:
 			c.Game.OnReady(c)
-		case SomeOneHit:
+		case OneHit:
 			c.Game.OnHit(c)
-		case SomeOneStand:
+		case OneStand:
 			c.Game.OnStand(c)
 		}
 	}
@@ -167,22 +167,7 @@ func (c *Client) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
-			}
+			c.conn.WriteMessage(websocket.TextMessage, message)
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -205,7 +190,7 @@ func ServeWs(game *Game, w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := NewClient(game, conn, utils.RandomPlayerName())
-	client.Game.OnRegister(client)
+	client.Game.OnJoin(client)
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

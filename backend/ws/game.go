@@ -60,7 +60,7 @@ func (g *Game) checkAllReadyToStart() {
 		dealer.playInfo.currentState = Ready
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(dealer, SomeOneReady, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經按下準備", dealer.ID))
+		BroadcastSuccessRes(dealer, BroadcastReady, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經按下準備", dealer.ID))
 		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 		// 開始遊戲
@@ -74,7 +74,7 @@ func (g *Game) checkPlayerCrashPointThenStop(c *Client) {
 		c.playInfo.currentState = Stop
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(c, SomeOneStand, c.ID, fmt.Sprintf("ClientID-%s玩家已經停止動作", c.ID))
+		BroadcastSuccessRes(c, BroadcastStand, c.ID, fmt.Sprintf("ClientID-%s玩家已經停止動作", c.ID))
 		BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 	}
 }
@@ -262,7 +262,7 @@ func (g *Game) checkAllStopToEnd() {
 		dealer.playInfo.currentState = Stop
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(dealer, SomeOneStand, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經停止動作", dealer.ID))
+		BroadcastSuccessRes(dealer, BroadcastStand, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經停止動作", dealer.ID))
 		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 		// 結束遊戲
