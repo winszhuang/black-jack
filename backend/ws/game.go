@@ -34,8 +34,15 @@ func NewGame(cardDealer *game.CardDealer) *Game {
 
 // Restart 重新開始遊戲
 func (g *Game) Restart() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	g.cardDealer.InitializeDeck()
 	g.cardDealer.ShuffleDeck()
+	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+		client := pair.Key
+		client.playInfo.Init()
+	}
 }
 
 func (g *Game) checkAllPlayerReadyToStart() {

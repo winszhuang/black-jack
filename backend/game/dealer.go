@@ -38,6 +38,7 @@ func (cd *CardDealer) InitializeDeck() {
 			}
 
 			card := Card{
+				Name:   value + string(suit),
 				Suit:   suit,
 				Symbol: value,
 				Value:  cardValue,

@@ -3,6 +3,7 @@ package ws
 import (
 	"black-jack/game"
 	"fmt"
+	"time"
 )
 
 func (g *Game) OnJoin(c *Client) {
@@ -142,4 +143,14 @@ func (g *Game) onGameEnd() {
 		ErrorCode: 0,
 		Message:   fmt.Sprintf("ClientID-%s玩家獲得勝利", winner.ID),
 	}.Byte())
+	g.Broadcast(WSResponse{
+		MsgCode:   UpdatePlayersDetail,
+		Data:      g.getAllClientDetail(),
+		Success:   true,
+		ErrorCode: 0,
+		Message:   "更新所有玩家資訊",
+	}.Byte())
+
+	time.Sleep(time.Second * 3)
+	g.Restart()
 }
