@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.6.1",
+    "sweetalert2": "^11.10.1",
     "vue": "^3.3.8"
   },
   "devDependencies": {

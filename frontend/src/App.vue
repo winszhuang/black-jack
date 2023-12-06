@@ -1,7 +1,29 @@
 <script setup lang="ts">
-import PlayerZone from './components/PlayerZone.vue'
-import { ECard } from './constants/card'
+import PlayerZone from '@/components/PlayerZone.vue'
+import { ECard } from '@/enums/card'
+import { EMsgCode } from '@/enums/msg-code'
+import { useWs } from '@/composables/use-ws'
+import { notify } from '@/utils/toast'
 
+const ws = useWs<EMsgCode>({
+  dev: 'ws://localhost:8080/ws',
+  prod: 'ws://localhost:8080'
+})
+ws.on(EMsgCode.OneJoin, (res) => {
+  notify(res.message)
+  console.log('res.message', res.message)
+  console.log('res.data', res.data)
+})
+
+ws.on(EMsgCode.BroadcastJoin, (res) => {
+  notify(res.message)
+  console.log('res.message', res.message)
+  console.log('res.data', res.data)
+})
+
+ws.on(EMsgCode.UpdatePlayersDetail, (res) => {
+  console.log(res.data)
+})
 const me = 'jiljiljil'
 
 type PlayerData = {
@@ -27,9 +49,12 @@ const players: PlayerData[] = [
     cards: [{ type: ECard._5H, value: 5 }]
   }
 ]
-
 // import Card from '@/components/Card.vue'
 // import { ECard } from '@/constants/card.ts'
+
+const onReady = () => ws.send(EMsgCode.OneReady)
+const onHit = () => ws.send(EMsgCode.OneHit)
+const onStand = () => ws.send(EMsgCode.OneStand)
 </script>
 
 <template>
@@ -49,9 +74,9 @@ const players: PlayerData[] = [
     </div>
     <div class="row2">
       <div class="buttons">
-        <button class="btn-lg btn-danger" id="deal" onmouseover="tink.play()">Ready</button>
-        <button class="btn-lg btn-success" id="hit" onmouseover="tink.play()">Hit</button>
-        <button class="btn-lg btn-warning" id="stand" onmouseover="tink.play()">Stand</button>
+        <button class="btn-lg btn-danger" id="ready" @click="onReady">Ready</button>
+        <button class="btn-lg btn-success" id="hit" @click="onHit">Hit</button>
+        <button class="btn-lg btn-warning" id="stand" @click="onStand">Stand</button>
       </div>
     </div>
     <div class="row3">

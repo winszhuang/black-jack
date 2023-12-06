@@ -1,24 +1,27 @@
 export enum EMsgCode {
-  SomeOneJoin = 1,
-
+  OneJoin = 1,
+  // 某玩家進入遊戲
+  BroadcastJoin = 2,
   // 某玩家離開遊戲
-  SomeOneLeave = 2,
+  BroadcastLeave = 3,
 
+  OneReady = 4,
   // 某玩家按下準備
-  SomeOneReady = 3,
-
+  BroadcastReady = 5,
   // 遊戲開始
-  GameStart = 4,
+  BroadcastGameStart = 6,
 
+  OneHit = 7,
   // 玩家要牌
-  SomeOneHit = 5,
+  BroadcastHit = 8,
+
+  OneStand = 9,
 
   // 玩家停止要牌
-  SomeOneStand = 6,
-
+  BroadcastStand = 10,
   // 遊戲結束
-  GameOver = 7,
+  BroadcastGameOver = 11,
 
   // 更新所有玩家資訊
-  UpdatePlayersDetail = 8
+  UpdatePlayersDetail = 12
 }
