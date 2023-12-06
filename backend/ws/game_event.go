@@ -43,7 +43,10 @@ func (g *Game) OnReady(c *Client) {
 	BroadcastSuccessRes(c, BroadcastReady, c.ID, fmt.Sprintf("ClientID-%s玩家已經按下準備", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
-	g.checkAllPlayerReadyToStart()
+	// 需要大於一個玩家才能開始遊戲
+	if g.isMoreThanOnePlayer() {
+		g.checkAllPlayerReadyToStart()
+	}
 }
 
 func (g *Game) onGameStart() {

@@ -203,3 +203,9 @@ func (g *Game) getClient(clientID string) *Client {
 	}
 	return nil
 }
+
+func (g *Game) isMoreThanOnePlayer() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.clients.Len() > 1
+}
