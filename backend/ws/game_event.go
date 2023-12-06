@@ -10,7 +10,7 @@ func (g *Game) OnJoin(c *Client) {
 	g.clients.Set(c, true)
 	g.mu.Unlock()
 
-	SendSuccessRes(c, OneJoin, c.ID, fmt.Sprintf("你好 以下提供給你專屬ID"))
+	SendSuccessRes(c, ClientJoin, c.ID, fmt.Sprintf("你好 以下提供給你專屬ID"))
 	BroadcastSuccessRes(c, BroadcastJoin, c.ID, fmt.Sprintf("玩家%s進入頻道", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
 }
@@ -39,7 +39,7 @@ func (g *Game) OnReady(c *Client) {
 	c.playInfo.currentState = Ready
 	g.mu.Unlock()
 
-	SendSuccessRes(c, OneReady, c.ID, fmt.Sprintf("你已準備"))
+	SendSuccessRes(c, ClientReady, c.ID, fmt.Sprintf("你已準備"))
 	BroadcastSuccessRes(c, BroadcastReady, c.ID, fmt.Sprintf("ClientID-%s玩家已經按下準備", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
@@ -101,7 +101,7 @@ func (g *Game) OnHit(c *Client) {
 		CardInfo: card,
 	}
 
-	SendSuccessRes(c, OneHit, result, fmt.Sprintf("你獲得新的一副牌"))
+	SendSuccessRes(c, ClientHit, result, fmt.Sprintf("你獲得新的一副牌"))
 	BroadcastSuccessRes(c, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
@@ -122,7 +122,7 @@ func (g *Game) OnStand(c *Client) {
 	c.playInfo.currentState = Stop
 	g.mu.Unlock()
 
-	SendSuccessRes(c, OneStand, c.ID, fmt.Sprintf("你已經停牌"))
+	SendSuccessRes(c, ClientStand, c.ID, fmt.Sprintf("你已經停牌"))
 	BroadcastSuccessRes(c, BroadcastStand, c.ID, fmt.Sprintf("ClientID-%s玩家停止要牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 

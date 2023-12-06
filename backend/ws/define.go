@@ -6,27 +6,41 @@ type MsgCode int
 
 const (
 	_ MsgCode = iota
-	OneJoin
-	// 某玩家進入遊戲
+
+	// 玩家加入
+	ClientJoin
+
+	// 廣播某玩家進入遊戲
 	BroadcastJoin
-	// 某玩家離開遊戲
+
+	// 廣播某玩家離開遊戲
 	BroadcastLeave
 
-	OneReady
-	// 某玩家按下準備
+	// 玩家準備
+	ClientReady
+
+	// 廣播某玩家按下準備
 	BroadcastReady
-	// 遊戲開始
+
+	// 廣播遊戲開始
 	BroadcastGameStart
 
-	OneHit
 	// 玩家要牌
+	ClientHit
+
+	// 廣播某玩家要牌
 	BroadcastHit
 
-	OneStand
+	// 廣播有人爆牌
+	BroadcastBust
 
 	// 玩家停止要牌
+	ClientStand
+
+	// 廣播某玩家停止要牌
 	BroadcastStand
-	// 遊戲結束
+
+	// 廣播遊戲結束
 	BroadcastGameOver
 
 	// 更新所有玩家資訊

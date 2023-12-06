@@ -132,11 +132,11 @@ func (c *Client) readPump() {
 		}
 
 		switch req.MsgCode {
-		case OneReady:
+		case ClientReady:
 			c.Game.OnReady(c)
-		case OneHit:
+		case ClientHit:
 			c.Game.OnHit(c)
-		case OneStand:
+		case ClientStand:
 			c.Game.OnStand(c)
 		}
 	}
