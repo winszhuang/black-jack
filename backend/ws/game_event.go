@@ -31,7 +31,7 @@ func (g *Game) OnReady(c *Client) {
 	g.mu.Lock()
 	notWaiting := c.playInfo.currentState > Wait
 	if notWaiting {
-		SendErrRes(c, BroadcastReady, ErrForWrongFlow, "錯誤的流程")
+		SendErrRes(c, ClientReady, ErrForWrongFlow, "錯誤的流程")
 		g.mu.Unlock()
 		return
 	}
@@ -43,7 +43,7 @@ func (g *Game) OnReady(c *Client) {
 	BroadcastSuccessRes(c, BroadcastReady, c.ID, fmt.Sprintf("ClientID-%s玩家已經按下準備", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
-	g.checkAllReadyToStart()
+	g.checkAllPlayerReadyToStart()
 }
 
 func (g *Game) onGameStart() {
@@ -78,7 +78,7 @@ func (g *Game) OnHit(c *Client) {
 	g.mu.Lock()
 	notPlaying := c.playInfo.currentState != Play
 	if notPlaying {
-		SendErrRes(c, BroadcastHit, ErrForWrongFlow, "錯誤的流程")
+		SendErrRes(c, ClientHit, ErrForWrongFlow, "錯誤的流程")
 		g.mu.Unlock()
 		return
 	}
@@ -86,7 +86,7 @@ func (g *Game) OnHit(c *Client) {
 	// 發牌
 	card, err := g.cardDealer.DealCard()
 	if err != nil {
-		SendErrRes(c, BroadcastHit, ErrForServerError, "伺服器問題 - 發牌錯誤")
+		SendErrRes(c, ClientHit, ErrForServerError, "伺服器問題 - 發牌錯誤")
 		g.mu.Unlock()
 		panic(err)
 		return
@@ -105,8 +105,8 @@ func (g *Game) OnHit(c *Client) {
 	BroadcastSuccessRes(c, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
-	g.checkPlayerCrashPointThenStop(c)
-	g.checkAllStopToEnd()
+	g.checkPlayerBustThenStop(c)
+	g.checkAllPlayerStopThenEnd()
 }
 
 func (g *Game) OnStand(c *Client) {
@@ -114,7 +114,7 @@ func (g *Game) OnStand(c *Client) {
 	notPlaying := c.playInfo.currentState != Play
 	if notPlaying {
 		g.mu.Unlock()
-		SendErrRes(c, BroadcastStand, ErrForWrongFlow, "錯誤的流程")
+		SendErrRes(c, ClientStand, ErrForWrongFlow, "錯誤的流程")
 		return
 	}
 
@@ -122,11 +122,10 @@ func (g *Game) OnStand(c *Client) {
 	c.playInfo.currentState = Stop
 	g.mu.Unlock()
 
-	SendSuccessRes(c, ClientStand, c.ID, fmt.Sprintf("你已經停牌"))
 	BroadcastSuccessRes(c, BroadcastStand, c.ID, fmt.Sprintf("ClientID-%s玩家停止要牌", c.ID))
 	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
-	g.checkAllStopToEnd()
+	g.checkAllPlayerStopThenEnd()
 }
 
 func (g *Game) onGameEnd() {

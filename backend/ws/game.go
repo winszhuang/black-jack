@@ -28,15 +28,8 @@ func NewGame(cardDealer *game.CardDealer) *Game {
 		cardDealer: cardDealer,
 		mu:         &sync.RWMutex{},
 	}
-	// 創建一個莊家
-	g.newDealerClient()
 	g.Restart()
 	return g
-}
-
-func (g *Game) newDealerClient() {
-	dealerClient := NewClient(g, nil, DealerClientID)
-	g.clients.Set(dealerClient, true)
 }
 
 // Restart 重新開始遊戲
@@ -45,31 +38,21 @@ func (g *Game) Restart() {
 	g.cardDealer.ShuffleDeck()
 }
 
-func (g *Game) checkAllReadyToStart() {
-	if !g.isAllPlayerSameStateExceptDealer(Ready) {
+func (g *Game) checkAllPlayerReadyToStart() {
+	if !g.isAllPlayerSameState(Ready) {
 		return
 	}
 
 	go func() {
-		// 等待2秒，莊家變成準備模式
-		time.Sleep(time.Second * 2)
-
-		// dealer更新狀態為ready
-		dealer := g.getClient(DealerClientID)
-		g.mu.Lock()
-		dealer.playInfo.currentState = Ready
-		g.mu.Unlock()
-
-		BroadcastSuccessRes(dealer, BroadcastReady, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經按下準備", dealer.ID))
-		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
-
+		// 等待1秒，開始遊戲
+		time.Sleep(time.Second)
 		// 開始遊戲
 		g.onGameStart()
 	}()
 }
 
-func (g *Game) checkPlayerCrashPointThenStop(c *Client) {
-	if g.isPlayerCrashPoint(c) {
+func (g *Game) checkPlayerBustThenStop(c *Client) {
+	if g.isPlayerBust(c) {
 		g.mu.Lock()
 		c.playInfo.currentState = Stop
 		g.mu.Unlock()
@@ -79,7 +62,21 @@ func (g *Game) checkPlayerCrashPointThenStop(c *Client) {
 	}
 }
 
-func (g *Game) isPlayerCrashPoint(c *Client) bool {
+func (g *Game) checkAllPlayerStopThenEnd() {
+	if !g.isAllPlayerSameState(Stop) {
+		return
+	}
+
+	go func() {
+		// 等待1秒，準備結束遊戲
+		time.Sleep(time.Second * 1)
+		// 結束遊戲
+		g.onGameEnd()
+	}()
+}
+
+// 玩家是否爆牌
+func (g *Game) isPlayerBust(c *Client) bool {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
@@ -174,24 +171,6 @@ func (g *Game) isAllPlayerSameState(state UserState) bool {
 	return count == g.clients.Len()
 }
 
-func (g *Game) findSomeOneCrashPoint() (*Client, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
-		client := pair.Key
-		if client.playInfo.currentState == Stop {
-			continue
-		}
-
-		totalPoints := client.playInfo.deck.CalculateTotalPoints()
-		if totalPoints > MaxPoint {
-			return client, true
-		}
-	}
-	return nil, false
-}
-
 func (g *Game) buildAllPlayerCards() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -212,28 +191,6 @@ func (g *Game) buildAllPlayerCards() error {
 	return nil
 }
 
-func (g *Game) isAllPlayerSameStateExceptDealer(state UserState) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	playerCount := g.clients.Len() - 1
-	if playerCount == 0 {
-		return false
-	}
-
-	var list []bool
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
-		client := pair.Key
-		if client.ID == DealerClientID {
-			continue
-		}
-		if client.playInfo.currentState == state {
-			list = append(list, true)
-		}
-	}
-	return len(list) == playerCount
-}
-
 func (g *Game) getClient(clientID string) *Client {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -245,27 +202,4 @@ func (g *Game) getClient(clientID string) *Client {
 		}
 	}
 	return nil
-}
-
-func (g *Game) checkAllStopToEnd() {
-	if !g.isAllPlayerSameStateExceptDealer(Stop) {
-		return
-	}
-
-	go func() {
-		// 等待2秒，莊家變成準備模式
-		time.Sleep(time.Second * 1)
-
-		// dealer更新狀態為stop
-		dealer := g.getClient(DealerClientID)
-		g.mu.Lock()
-		dealer.playInfo.currentState = Stop
-		g.mu.Unlock()
-
-		BroadcastSuccessRes(dealer, BroadcastStand, dealer.ID, fmt.Sprintf("ClientID-%s莊家已經停止動作", dealer.ID))
-		BroadcastSuccessRes(dealer, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
-
-		// 結束遊戲
-		g.onGameEnd()
-	}()
 }
