@@ -41,7 +41,7 @@ ws.on(EMsgCode.UpdatePlayersDetail, (res) => {
   playersDetail.value = res.data as PlayerDetail[]
 })
 
-const onReady = () => ws.send(EMsgCode.ClientReady, '123')
+const onReady = () => ws.send(EMsgCode.ClientReady)
 const onHit = () => ws.send(EMsgCode.ClientHit)
 const onStand = () => ws.send(EMsgCode.ClientStand)
 </script>
@@ -59,15 +59,11 @@ const onStand = () => ws.send(EMsgCode.ClientStand)
         :cards="player.deck"
         :user-state="player.state"
         :is-me="player.id === myId"
+        :on-ready="onReady"
+        :on-hit="onHit"
+        :on-stand="onStand"
       >
       </PlayerZone>
-    </div>
-    <div class="row2">
-      <div class="buttons">
-        <button class="btn-lg btn-danger" id="ready" @click="onReady">Ready</button>
-        <button class="btn-lg btn-success" id="hit" @click="onHit">Hit</button>
-        <button class="btn-lg btn-warning" id="stand" @click="onStand">Stand</button>
-      </div>
     </div>
     <div class="row3">
       <h3>Scoreboard:</h3>
