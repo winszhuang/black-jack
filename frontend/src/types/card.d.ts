@@ -1,4 +1,6 @@
 interface Card {
-  type: import('@/enums/card').ECard
+  name: string
+  suit: string
+  symbol: string
   value: number
 }

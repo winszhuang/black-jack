@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import PlayerZone from '@/components/PlayerZone.vue'
-import { ECard } from '@/enums/card'
 import { EMsgCode } from '@/enums/msg-code'
 import { useWs } from '@/composables/use-ws'
 import { notify } from '@/utils/toast'
+import { ref } from 'vue'
 
 const ws = useWs<EMsgCode>({
   dev: 'ws://localhost:8080/ws',
   prod: 'ws://localhost:8080'
 })
-ws.on(EMsgCode.OneJoin, (res) => {
+
+const myId = ref('')
+const playersDetail = ref<PlayerDetail[]>([])
+
+ws.on(EMsgCode.ClientJoin, (res) => {
   notify(res.message)
-  console.log('res.message', res.message)
-  console.log('res.data', res.data)
+  myId.value = res.data as string
 })
 
 ws.on(EMsgCode.BroadcastJoin, (res) => {
@@ -21,40 +24,26 @@ ws.on(EMsgCode.BroadcastJoin, (res) => {
   console.log('res.data', res.data)
 })
 
+ws.on(EMsgCode.BroadcastLeave, (res) => {
+  notify(res.message)
+})
+
+ws.on(EMsgCode.BroadcastGameStart, (res) => {
+  notify(res.message)
+})
+
+ws.on(EMsgCode.BroadcastGameOver, (res) => {
+  notify(res.message)
+})
+
 ws.on(EMsgCode.UpdatePlayersDetail, (res) => {
   console.log(res.data)
+  playersDetail.value = res.data as PlayerDetail[]
 })
-const me = 'jiljiljil'
 
-type PlayerData = {
-  userId: string
-  name: string
-  cards: Card[]
-}
-
-const players: PlayerData[] = [
-  {
-    userId: 'jiljiljil',
-    name: 'wins',
-    cards: [{ type: ECard.AC, value: 11 }]
-  },
-  {
-    userId: 'opilhilj',
-    name: 'tina',
-    cards: [{ type: ECard._4S, value: 4 }]
-  },
-  {
-    userId: 'whukhui',
-    name: 'reg',
-    cards: [{ type: ECard._5H, value: 5 }]
-  }
-]
-// import Card from '@/components/Card.vue'
-// import { ECard } from '@/constants/card.ts'
-
-const onReady = () => ws.send(EMsgCode.OneReady)
-const onHit = () => ws.send(EMsgCode.OneHit)
-const onStand = () => ws.send(EMsgCode.OneStand)
+const onReady = () => ws.send(EMsgCode.ClientReady, '123')
+const onHit = () => ws.send(EMsgCode.ClientHit)
+const onStand = () => ws.send(EMsgCode.ClientStand)
 </script>
 
 <template>
@@ -63,12 +52,13 @@ const onStand = () => ws.send(EMsgCode.OneStand)
     <h2><span id="command">Gambling Time</span></h2>
     <div class="row1">
       <PlayerZone
-        v-for="player in players"
-        :key="player.userId"
-        :user-id="player.userId"
-        :name="player.name"
-        :cards="player.cards"
-        :is-me="player.userId === me"
+        v-for="player in playersDetail"
+        :key="player.id"
+        :user-id="player.id"
+        :name="player.id"
+        :cards="player.deck"
+        :user-state="player.state"
+        :is-me="player.id === myId"
       >
       </PlayerZone>
     </div>

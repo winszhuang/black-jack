@@ -153,4 +153,11 @@ func (g *Game) onGameEnd() {
 
 	time.Sleep(time.Second * 3)
 	g.Restart()
+	g.Broadcast(WSResponse{
+		MsgCode:   UpdatePlayersDetail,
+		Data:      g.getAllClientDetail(),
+		Success:   true,
+		ErrorCode: 0,
+		Message:   "更新所有玩家資訊",
+	}.Byte())
 }

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { ECard } from '@/enums/card'
-
 const props = defineProps<{
-  card: ECard
+  card: string
 }>()
 
 const imageUrl = new URL(`/src/assets/${props.card}.png`, import.meta.url).href

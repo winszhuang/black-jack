@@ -23,3 +23,9 @@ type WsEvents = {
   [EMsgCode.GameOver]: { data: string }
   [EMsgCode.UpdatePlayersDetail]: { data: string }
 }
+
+type ResponseClientJoin = string
+type ResponseBroadcastJoin = string
+// type ResponseUpdatePlayersDetail = {
+
+// }

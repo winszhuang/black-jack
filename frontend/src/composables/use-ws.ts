@@ -48,10 +48,10 @@ export function useWs<E extends number>(
     ws.onclose = () => callback()
   }
 
-  function send(msgCode: E, data?: WsRequest) {
+  function send(msgCode: E, data?: any) {
     ws.send(
       JSON.stringify({
-        msgCode,
+        msg_code: msgCode,
         data
       })
     )

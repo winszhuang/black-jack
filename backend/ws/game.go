@@ -105,6 +105,7 @@ func (g *Game) calculateFinalWinner() *Client {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
+	// #TODO 有可能同點數
 	firstClient := g.clients.Oldest().Key
 	currMaxPoint := firstClient.playInfo.deck.CalculateTotalPoints()
 	winnerClient := firstClient
