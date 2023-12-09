@@ -49,10 +49,10 @@ type Client struct {
 	send chan []byte
 
 	// user ID
-	ID string
+	ID string `json:"id"`
 
 	// user game data
-	playInfo *PlayInfo
+	playInfo *PlayInfo `json:"playInfo"`
 }
 
 func NewClient(game *Game, conn *websocket.Conn, ID string) *Client {
@@ -63,6 +63,62 @@ func NewClient(game *Game, conn *websocket.Conn, ID string) *Client {
 		ID:       ID,
 		playInfo: NewPlayInfo(),
 	}
+}
+
+func NewPlayInfo() *PlayInfo {
+	u := &PlayInfo{}
+	u.Init()
+	return u
+}
+
+func (u *PlayInfo) Init() {
+	u.deck = make(game.Deck, 0)
+	u.currentState = Wait
+}
+
+func (c *Client) InitPlayerInfo() {
+	c.playInfo.Init()
+}
+
+func (c *Client) GetID() string {
+	return c.ID
+}
+
+func (c *Client) GetCurrentState() UserState {
+	return c.playInfo.currentState
+}
+
+func (c *Client) UpdateCurrentState(state UserState) {
+	c.playInfo.currentState = state
+}
+
+func (c *Client) CalculateTotalPoints() int {
+	return c.playInfo.deck.CalculateTotalPoints()
+}
+
+func (c *Client) GetGameDetail() ClientDetail {
+	return ClientDetail{
+		ID:    c.ID,
+		Deck:  c.playInfo.deck,
+		State: c.playInfo.currentState,
+	}
+}
+
+func (c *Client) AddCard(card game.Card) {
+	c.playInfo.deck = c.playInfo.deck.AddCard(card)
+}
+
+func (c *Client) WsSend(data []byte) {
+	select {
+	case c.send <- data:
+	default:
+		c.CloseWsSend()
+		c.Game.clients.Delete(c)
+	}
+}
+
+func (c *Client) CloseWsSend() {
+	close(c.send)
 }
 
 type PlayInfo struct {
@@ -80,17 +136,6 @@ const (
 	Stop
 	End
 )
-
-func NewPlayInfo() *PlayInfo {
-	u := &PlayInfo{}
-	u.Init()
-	return u
-}
-
-func (u *PlayInfo) Init() {
-	u.deck = make(game.Deck, 0)
-	u.currentState = Wait
-}
 
 // readPump pumps messages from the websocket connection to the Game.
 //

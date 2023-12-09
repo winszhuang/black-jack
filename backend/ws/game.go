@@ -4,6 +4,7 @@ import (
 	"black-jack/game"
 	"fmt"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
+	"log"
 	"sync"
 	"time"
 )
@@ -12,19 +13,16 @@ const MaxPoint = 21
 const DealerClientID = "dealer"
 
 type Game struct {
-	// 註冊的所有玩家
-	clients *orderedmap.OrderedMap[*Client, bool]
+	clients *orderedmap.OrderedMap[IClient, bool] // 註冊的所有玩家
 
-	// 發牌員
-	cardDealer *game.CardDealer
+	cardDealer game.ICardDealer // 發牌員
 
-	// 鎖
-	mu *sync.RWMutex
+	mu *sync.RWMutex // 鎖
 }
 
-func NewGame(cardDealer *game.CardDealer) *Game {
+func NewGame(cardDealer game.ICardDealer) *Game {
 	g := &Game{
-		clients:    orderedmap.New[*Client, bool](),
+		clients:    orderedmap.New[IClient, bool](),
 		cardDealer: cardDealer,
 		mu:         &sync.RWMutex{},
 	}
@@ -41,7 +39,7 @@ func (g *Game) Restart() {
 	g.cardDealer.ShuffleDeck()
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		client.playInfo.Init()
+		client.InitPlayerInfo()
 	}
 }
 
@@ -58,14 +56,14 @@ func (g *Game) checkAllPlayerReadyToStart() {
 	}()
 }
 
-func (g *Game) checkPlayerBustThenStop(c *Client) {
+func (g *Game) checkPlayerBustThenStop(c IClient) {
 	if g.isPlayerBust(c) {
 		g.mu.Lock()
-		c.playInfo.currentState = Stop
+		c.UpdateCurrentState(Stop)
 		g.mu.Unlock()
 
-		BroadcastSuccessRes(c, BroadcastStand, c.ID, fmt.Sprintf("ClientID-%s玩家已經停止動作", c.ID))
-		BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
+		BroadcastSuccessRes(g, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經停止動作", c.GetID()))
+		BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 	}
 }
 
@@ -83,11 +81,11 @@ func (g *Game) checkAllPlayerStopThenEnd() {
 }
 
 // 玩家是否爆牌
-func (g *Game) isPlayerBust(c *Client) bool {
+func (g *Game) isPlayerBust(c IClient) bool {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
-	totalPoints := c.playInfo.deck.CalculateTotalPoints()
+	totalPoints := c.CalculateTotalPoints()
 	return totalPoints > MaxPoint
 }
 
@@ -97,54 +95,57 @@ func (g *Game) updateAllPlayerState(state UserState) {
 
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		client.playInfo.currentState = state
+		client.UpdateCurrentState(state)
 	}
 }
 
-func (g *Game) calculateFinalWinner() *Client {
+func (g *Game) calculateFinalWinners() ([]IClient, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
-	// #TODO
-	// 有可能同點數
-	// 兩個人都爆點數
-	// 多人都爆點數
-	firstClient := g.clients.Oldest().Key
-	currMaxPoint := firstClient.playInfo.deck.CalculateTotalPoints()
-	winnerClient := firstClient
+	// 玩家沒有1人以上就不用算了
+	if g.clients.Len() < 2 {
+		return []IClient{}, false
+	}
+
+	// 紀錄玩家得分-玩家資訊
+	pointClientMap := map[int][]IClient{}
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		if client == firstClient {
+		clientPoint := client.CalculateTotalPoints()
+		// 爆點不理他
+		if clientPoint > MaxPoint {
 			continue
 		}
 
-		clientPoint := client.playInfo.deck.CalculateTotalPoints()
-		if clientPoint > currMaxPoint {
-			winnerClient = client
-			currMaxPoint = clientPoint
+		if _, isExist := pointClientMap[clientPoint]; !isExist {
+			pointClientMap[clientPoint] = []IClient{client}
+		} else {
+			pointClientMap[clientPoint] = append(pointClientMap[clientPoint], client)
 		}
 	}
-	return winnerClient
+
+	// 算出最大點數
+	maxPoint := 0
+	for point, _ := range pointClientMap {
+		if point > maxPoint {
+			maxPoint = point
+		}
+	}
+	if _, isExist := pointClientMap[maxPoint]; isExist {
+		return pointClientMap[maxPoint], true
+	}
+	log.Println("靠北 這邊也會錯哦 算分", maxPoint)
+	return []IClient{}, false
 }
 
 func (g *Game) Broadcast(data []byte) {
 	g.mu.Lock()
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		select {
-		case client.send <- data:
-		default:
-			close(client.send)
-			g.clients.Delete(client)
-		}
+		client.WsSend(data)
 	}
 	g.mu.Unlock()
-}
-
-type ClientDetail struct {
-	ID    string    `json:"id"`
-	Deck  game.Deck `json:"deck"`
-	State UserState `json:"state"`
 }
 
 func (g *Game) getAllClientDetail() []ClientDetail {
@@ -155,11 +156,7 @@ func (g *Game) getAllClientDetail() []ClientDetail {
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 
-		allClientsDetail = append(allClientsDetail, ClientDetail{
-			ID:    client.ID,
-			Deck:  client.playInfo.deck,
-			State: client.playInfo.currentState,
-		})
+		allClientsDetail = append(allClientsDetail, client.GetGameDetail())
 	}
 	return allClientsDetail
 }
@@ -175,7 +172,7 @@ func (g *Game) isAllPlayerSameState(state UserState) bool {
 	count := 0
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		if client.playInfo.currentState == state {
+		if client.GetCurrentState() == state {
 			count++
 		}
 	}
@@ -196,19 +193,19 @@ func (g *Game) buildAllPlayerCards() error {
 		if err2 != nil {
 			return err2
 		}
-		client.playInfo.deck = client.playInfo.deck.AddCard(card1)
-		client.playInfo.deck = client.playInfo.deck.AddCard(card2)
+		client.AddCard(card1)
+		client.AddCard(card2)
 	}
 	return nil
 }
 
-func (g *Game) getClient(clientID string) *Client {
+func (g *Game) getClient(clientID string) IClient {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		if client.ID == clientID {
+		if client.GetID() == clientID {
 			return client
 		}
 	}

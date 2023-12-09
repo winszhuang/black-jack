@@ -6,43 +6,43 @@ import (
 	"time"
 )
 
-func (g *Game) OnJoin(c *Client) {
+func (g *Game) OnJoin(c IClient) {
 	g.mu.Lock()
 	g.clients.Set(c, true)
 	g.mu.Unlock()
 
-	SendSuccessRes(c, ClientJoin, c.ID, fmt.Sprintf("你好 以下提供給你專屬ID"))
-	BroadcastSuccessRes(c, BroadcastJoin, c.ID, fmt.Sprintf("玩家%s進入頻道", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
+	SendSuccessRes(c, ClientJoin, c.GetID(), fmt.Sprintf("你好 以下提供給你專屬ID"))
+	BroadcastSuccessRes(g, BroadcastJoin, c.GetID(), fmt.Sprintf("玩家%s進入頻道", c.GetID()))
+	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
 }
 
-func (g *Game) OnLeave(c *Client) {
+func (g *Game) OnLeave(c IClient) {
 	g.mu.Lock()
 	if _, ok := g.clients.Get(c); ok {
+		c.CloseWsSend()
 		g.clients.Delete(c)
-		close(c.send)
 	}
 	g.mu.Unlock()
 
-	BroadcastSuccessRes(c, BroadcastLeave, c.ID, fmt.Sprintf("ClientID-%s玩家離開遊戲", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
+	BroadcastSuccessRes(g, BroadcastLeave, c.GetID(), fmt.Sprintf("ClientID-%s玩家離開遊戲", c.GetID()))
+	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
 }
 
-func (g *Game) OnReady(c *Client) {
+func (g *Game) OnReady(c IClient) {
 	g.mu.Lock()
-	notWaiting := c.playInfo.currentState > Wait
+	notWaiting := c.GetCurrentState() > Wait
 	if notWaiting {
 		SendErrRes(c, ClientReady, ErrForWrongFlow, "錯誤的流程")
 		g.mu.Unlock()
 		return
 	}
 
-	c.playInfo.currentState = Ready
+	c.UpdateCurrentState(Ready)
 	g.mu.Unlock()
 
-	SendSuccessRes(c, ClientReady, c.ID, fmt.Sprintf("你已準備"))
-	BroadcastSuccessRes(c, BroadcastReady, c.ID, fmt.Sprintf("ClientID-%s玩家已經按下準備", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
+	SendSuccessRes(c, ClientReady, c.GetID(), fmt.Sprintf("你已準備"))
+	BroadcastSuccessRes(g, BroadcastReady, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經按下準備", c.GetID()))
+	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 	// 需要大於一個玩家才能開始遊戲
 	if g.isMoreThanOnePlayer() {
@@ -78,9 +78,9 @@ type NewCardInfo struct {
 	CardInfo game.Card `json:"card_info"`
 }
 
-func (g *Game) OnHit(c *Client) {
+func (g *Game) OnHit(c IClient) {
 	g.mu.Lock()
-	notPlaying := c.playInfo.currentState != Play
+	notPlaying := c.GetCurrentState() != Play
 	if notPlaying {
 		SendErrRes(c, ClientHit, ErrForWrongFlow, "錯誤的流程")
 		g.mu.Unlock()
@@ -97,25 +97,25 @@ func (g *Game) OnHit(c *Client) {
 	}
 
 	// 更新牌給該玩家
-	c.playInfo.deck = c.playInfo.deck.AddCard(card)
+	c.AddCard(card)
 	g.mu.Unlock()
 
 	result := NewCardInfo{
-		ClientID: c.ID,
+		ClientID: c.GetID(),
 		CardInfo: card,
 	}
 
 	SendSuccessRes(c, ClientHit, result, fmt.Sprintf("你獲得新的一副牌"))
-	BroadcastSuccessRes(c, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
+	BroadcastSuccessRes(g, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.GetID()))
+	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 	g.checkPlayerBustThenStop(c)
 	g.checkAllPlayerStopThenEnd()
 }
 
-func (g *Game) OnStand(c *Client) {
+func (g *Game) OnStand(c IClient) {
 	g.mu.Lock()
-	notPlaying := c.playInfo.currentState != Play
+	notPlaying := c.GetCurrentState() != Play
 	if notPlaying {
 		g.mu.Unlock()
 		SendErrRes(c, ClientStand, ErrForWrongFlow, "錯誤的流程")
@@ -123,26 +123,45 @@ func (g *Game) OnStand(c *Client) {
 	}
 
 	// 更新玩家狀態
-	c.playInfo.currentState = Stop
+	c.UpdateCurrentState(Stop)
 	g.mu.Unlock()
 
-	BroadcastSuccessRes(c, BroadcastStand, c.ID, fmt.Sprintf("ClientID-%s玩家停止要牌", c.ID))
-	BroadcastSuccessRes(c, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
+	BroadcastSuccessRes(g, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家停止要牌", c.GetID()))
+	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
 
 	g.checkAllPlayerStopThenEnd()
 }
 
 func (g *Game) onGameEnd() {
-	winner := g.calculateFinalWinner()
 	g.updateAllPlayerState(End)
 
+	winners, isExist := g.calculateFinalWinners()
+	if !isExist {
+		g.Broadcast(WSResponse{
+			MsgCode:   BroadcastGameOver,
+			Data:      nil,
+			Success:   true,
+			ErrorCode: 0,
+			Message:   fmt.Sprintf("沒有任何玩家獲勝"),
+		}.Byte())
+		return
+	}
+
+	winnerIds := []string{}
+	message := ""
+	for _, winner := range winners {
+		id := winner.GetID()
+		winnerIds = append(winnerIds, id)
+		message += id + " "
+	}
 	g.Broadcast(WSResponse{
 		MsgCode:   BroadcastGameOver,
-		Data:      winner,
+		Data:      winnerIds,
 		Success:   true,
 		ErrorCode: 0,
-		Message:   fmt.Sprintf("ClientID-%s玩家獲得勝利", winner.ID),
+		Message:   fmt.Sprintf("獲得勝利的是: ") + message,
 	}.Byte())
+
 	g.Broadcast(WSResponse{
 		MsgCode:   UpdatePlayersDetail,
 		Data:      g.getAllClientDetail(),

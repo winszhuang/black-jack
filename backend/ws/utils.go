@@ -1,7 +1,7 @@
 package ws
 
-func SendErrRes(c *Client, msgCode MsgCode, errorCode WSError, message string) {
-	c.Write(WSResponse{
+func SendErrRes(c IClient, msgCode MsgCode, errorCode WSError, message string) {
+	c.WsSend(WSResponse{
 		MsgCode:   msgCode,
 		Data:      nil,
 		Success:   false,
@@ -10,8 +10,8 @@ func SendErrRes(c *Client, msgCode MsgCode, errorCode WSError, message string) {
 	}.Byte())
 }
 
-func SendSuccessRes(c *Client, msgCode MsgCode, data interface{}, message string) {
-	c.Write(WSResponse{
+func SendSuccessRes(c IClient, msgCode MsgCode, data interface{}, message string) {
+	c.WsSend(WSResponse{
 		MsgCode:   msgCode,
 		Data:      data,
 		Success:   true,
@@ -20,8 +20,8 @@ func SendSuccessRes(c *Client, msgCode MsgCode, data interface{}, message string
 	}.Byte())
 }
 
-func BroadcastErrRes(c *Client, msgCode MsgCode, errorCode WSError, message string) {
-	c.Game.Broadcast(WSResponse{
+func BroadcastErrRes(game *Game, msgCode MsgCode, errorCode WSError, message string) {
+	game.Broadcast(WSResponse{
 		MsgCode:   msgCode,
 		Data:      nil,
 		Success:   false,
@@ -30,8 +30,8 @@ func BroadcastErrRes(c *Client, msgCode MsgCode, errorCode WSError, message stri
 	}.Byte())
 }
 
-func BroadcastSuccessRes(c *Client, msgCode MsgCode, data interface{}, message string) {
-	c.Game.Broadcast(WSResponse{
+func BroadcastSuccessRes(game *Game, msgCode MsgCode, data interface{}, message string) {
+	game.Broadcast(WSResponse{
 		MsgCode:   msgCode,
 		Data:      data,
 		Success:   true,
