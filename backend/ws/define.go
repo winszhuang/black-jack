@@ -43,6 +43,9 @@ const (
 	// 廣播遊戲結束
 	BroadcastGameOver
 
+	// 廣播遊戲重新開始
+	BroadcastReStart
+
 	// 更新所有玩家資訊
 	UpdatePlayersDetail
 )

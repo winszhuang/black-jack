@@ -35,6 +35,9 @@ export enum EMsgCode {
   // 廣播遊戲結束
   BroadcastGameOver = 12,
 
+  // 廣播遊戲重新開始
+  BroadcastReStart = 13,
+
   // 更新所有玩家資訊
-  UpdatePlayersDetail = 13
+  UpdatePlayersDetail = 14
 }

@@ -36,6 +36,10 @@ ws.on(EMsgCode.BroadcastGameOver, (res) => {
   notify(res.message)
 })
 
+ws.on(EMsgCode.BroadcastReStart, (res) => {
+  notify(res.message)
+})
+
 ws.on(EMsgCode.UpdatePlayersDetail, (res) => {
   console.log(res.data)
   playersDetail.value = res.data as PlayerDetail[]

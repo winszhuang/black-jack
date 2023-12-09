@@ -24,8 +24,15 @@ func (g *Game) OnLeave(c IClient) {
 	}
 	g.mu.Unlock()
 
-	BroadcastSuccessRes(g, BroadcastLeave, c.GetID(), fmt.Sprintf("ClientID-%s玩家離開遊戲", c.GetID()))
-	BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
+	// 某玩家斷線後若不到2人 遊戲中斷
+	if g.clients.Len() < 2 && (g.isAllPlayerSameState(Play) || g.isAllPlayerSameState(Stop)) {
+		g.Restart()
+		BroadcastSuccessRes(g, BroadcastReStart, nil, fmt.Sprintf("玩家人數不到2人 遊戲重新"))
+		BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
+	} else {
+		BroadcastSuccessRes(g, BroadcastLeave, c.GetID(), fmt.Sprintf("ClientID-%s玩家離開遊戲", c.GetID()))
+		BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資訊")
+	}
 }
 
 func (g *Game) OnReady(c IClient) {
