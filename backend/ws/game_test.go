@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"black-jack/game"
+	"black-jack/card"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -46,7 +46,7 @@ func TestGame_calculateFinalWinner(t *testing.T) {
 		require.Equal(t, winners[0].GetID(), "test02")
 	})
 	t.Run("兩人同分", func(t *testing.T) {
-		dealer := game.NewCardDealerMock(game.Deck{})
+		dealer := card.NewCardDealerMock(card.Deck{})
 		newGame := NewGame(dealer)
 
 		client01 := genClientAndAddCards("test01", "3D", "KS")
@@ -62,14 +62,14 @@ func TestGame_calculateFinalWinner(t *testing.T) {
 }
 
 func initGame() *Game {
-	dealer := game.NewCardDealerMock(game.Deck{})
+	dealer := card.NewCardDealerMock(card.Deck{})
 	return NewGame(dealer)
 }
 
 func genClientAndAddCards(id string, cards ...string) *ClientMock {
 	client := NewClientMock(id)
 	for _, name := range cards {
-		client.AddCard(game.NewCardByName(name))
+		client.AddCard(card.NewCardByName(name))
 	}
 	return client
 }

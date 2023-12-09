@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"black-jack/game"
+	"black-jack/card"
 	"black-jack/utils"
 	"encoding/json"
 	"log"
@@ -51,7 +51,7 @@ type Client struct {
 	// user ID
 	ID string `json:"id"`
 
-	// user game data
+	// user card data
 	playInfo *PlayInfo `json:"playInfo"`
 }
 
@@ -72,7 +72,7 @@ func NewPlayInfo() *PlayInfo {
 }
 
 func (u *PlayInfo) Init() {
-	u.deck = make(game.Deck, 0)
+	u.deck = make(card.Deck, 0)
 	u.currentState = Wait
 }
 
@@ -104,7 +104,7 @@ func (c *Client) GetGameDetail() ClientDetail {
 	}
 }
 
-func (c *Client) AddCard(card game.Card) {
+func (c *Client) AddCard(card card.Card) {
 	c.playInfo.deck = c.playInfo.deck.AddCard(card)
 }
 
@@ -122,7 +122,7 @@ func (c *Client) CloseWsSend() {
 }
 
 type PlayInfo struct {
-	deck         game.Deck
+	deck         card.Deck
 	currentState UserState
 }
 

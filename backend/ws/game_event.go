@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"black-jack/game"
+	"black-jack/card"
 	"fmt"
 	"time"
 )
@@ -82,7 +82,7 @@ func (g *Game) onGameStart() {
 
 type NewCardInfo struct {
 	ClientID string    `json:"client_id"`
-	CardInfo game.Card `json:"card_info"`
+	CardInfo card.Card `json:"card_info"`
 }
 
 func (g *Game) OnHit(c IClient) {

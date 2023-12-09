@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"black-jack/game"
+	"black-jack/card"
 	"fmt"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"log"
@@ -15,12 +15,12 @@ const DealerClientID = "dealer"
 type Game struct {
 	clients *orderedmap.OrderedMap[IClient, bool] // 註冊的所有玩家
 
-	cardDealer game.ICardDealer // 發牌員
+	cardDealer card.ICardDealer // 發牌員
 
 	mu *sync.RWMutex // 鎖
 }
 
-func NewGame(cardDealer game.ICardDealer) *Game {
+func NewGame(cardDealer card.ICardDealer) *Game {
 	g := &Game{
 		clients:    orderedmap.New[IClient, bool](),
 		cardDealer: cardDealer,

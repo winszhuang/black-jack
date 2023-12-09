@@ -1,7 +1,7 @@
 package main
 
 import (
-	game "black-jack/game"
+	game "black-jack/card"
 	"black-jack/ws"
 	"flag"
 	"log"

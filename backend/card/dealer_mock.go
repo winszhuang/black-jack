@@ -1,4 +1,4 @@
-package game
+package card
 
 type CardDealerMock struct {
 	Deck Deck

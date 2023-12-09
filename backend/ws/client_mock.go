@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"black-jack/game"
+	"black-jack/card"
 )
 
 type ClientMock struct {
@@ -37,7 +37,7 @@ func (c *ClientMock) GetGameDetail() ClientDetail {
 	return ClientDetail{}
 }
 
-func (c *ClientMock) AddCard(card game.Card) {
+func (c *ClientMock) AddCard(card card.Card) {
 	c.playInfo.deck = c.playInfo.deck.AddCard(card)
 }
 

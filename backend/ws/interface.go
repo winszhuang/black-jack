@@ -1,10 +1,10 @@
 package ws
 
-import "black-jack/game"
+import "black-jack/card"
 
 type ClientDetail struct {
 	ID    string    `json:"id"`
-	Deck  game.Deck `json:"deck"`
+	Deck  card.Deck `json:"deck"`
 	State UserState `json:"state"`
 }
 
@@ -15,7 +15,7 @@ type IClient interface {
 	UpdateCurrentState(state UserState)
 	CalculateTotalPoints() int
 	GetGameDetail() ClientDetail
-	AddCard(card game.Card)
+	AddCard(card card.Card)
 	WsSend([]byte)
 	CloseWsSend()
 }
