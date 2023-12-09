@@ -31,14 +31,10 @@ func NewCardByName(cardStr string) Card {
 
 	var value int
 	var err error
-	if symbol == "J" {
-		value = 11
-	} else if symbol == "Q" {
-		value = 12
-	} else if symbol == "K" {
-		value = 13
-	} else if symbol == "A" {
-		value = 11
+	if symbol == "A" {
+		value = 11 // "A" 可以等於1或11
+	} else if symbol == "K" || symbol == "Q" || symbol == "J" {
+		value = 10 // "K", "Q", "J" 都等於10
 	} else {
 		value, err = strconv.Atoi(symbol)
 		if err != nil {
