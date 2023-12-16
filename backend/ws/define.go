@@ -1,11 +1,25 @@
 package ws
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/google/uuid"
+)
 
-type MsgCode int
+type Route string
 
 const (
-	_ MsgCode = iota
+	Register      Route = "register"
+	Login         Route = "login"
+	JoinRoom      Route = "join_room"
+	LeaveRoom     Route = "leave_room"
+	PlayBlackJack Route = "play_black_jack"
+	GetRoomsInfo  Route = "get_rooms_info"
+)
+
+type OperationCode int
+
+const (
+	_ OperationCode = iota
 
 	// 玩家加入
 	ClientJoin
@@ -51,12 +65,36 @@ const (
 )
 
 type WSRequest struct {
-	Data    interface{} `json:"data"`
-	MsgCode MsgCode     `json:"msg_code"`
+	Route Route       `json:"route"`
+	Data  interface{} `json:"data"`
+}
+
+type WSLoginReqData struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
+type WSRegisterReqData struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
+type WSJoinRoomReqData struct {
+	RoomID uuid.UUID `json:"room_id"`
+}
+
+type WSLeaveRoomReqData struct {
+	RoomID uuid.UUID `json:"room_id"`
+}
+
+type WSPlayGameReqData struct {
+	OpCode   OperationCode `json:"opcode"`
+	GameType int           `json:"gametype"`
+	GameData interface{}   `json:"gamedata"`
 }
 
 type WSResponse struct {
-	MsgCode   MsgCode     `json:"msg_code"`
+	Route     Route       `json:"route"`
 	Data      interface{} `json:"data"`
 	Success   bool        `json:"success" example:"true"`
 	ErrorCode WSError     `json:"error_code" example:"0"`

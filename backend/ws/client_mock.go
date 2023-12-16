@@ -9,6 +9,27 @@ type ClientMock struct {
 	playInfo *PlayInfo `json:"playInfo"`
 }
 
+func (c *ClientMock) IsLogin() bool {
+	return true
+}
+
+func (c *ClientMock) SetCurrRoom(room *Room) {
+	// nothing
+}
+
+func (c *ClientMock) GetCurrRoom() *Room {
+	return nil
+}
+
+func (c *ClientMock) SetProperty(key string, value interface{}) {
+	// nothing
+}
+
+func (c *ClientMock) GetProperty(key string) (interface{}, error) {
+	// nothing
+	return nil, nil
+}
+
 func NewClientMock(ID string) *ClientMock {
 	return &ClientMock{ID: ID, playInfo: NewPlayInfo()}
 }

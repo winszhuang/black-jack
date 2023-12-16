@@ -10,4 +10,8 @@ const (
 	ErrForDealCard
 	ErrForGetAllPlayerCards
 	ErrForWrongFlow
+	ErrForUnauthorized
+	ErrForInvalidRequest
+	ErrForCantFindThisRoom
+	ErrForClientNotInRoom
 )

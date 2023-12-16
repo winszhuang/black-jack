@@ -4,8 +4,12 @@ import (
 	"black-jack/card"
 	"black-jack/utils"
 	"encoding/json"
+	"errors"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -38,9 +42,9 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Client is a middleman between the websocket connection and the Game.
+// Client is a middleman between the websocket connection and the Room.
 type Client struct {
-	Game *Game
+	Center *GameCenter
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -49,19 +53,37 @@ type Client struct {
 	send chan []byte
 
 	// user ID
-	ID string `json:"id"`
+	ID uuid.UUID `json:"id"`
+
+	// user property
+	property map[string]interface{}
+
+	// user property lock
+	propertyLock *sync.RWMutex
 
 	// user card data
 	playInfo *PlayInfo `json:"playInfo"`
+
+	currRoom *Room
 }
 
-func NewClient(game *Game, conn *websocket.Conn, ID string) *Client {
+func (c *Client) IsLogin() bool {
+	isLogin, err := c.GetProperty("isLogin")
+	if err != nil {
+		return false
+	}
+	return isLogin.(bool)
+}
+
+func NewClient(center *GameCenter, conn *websocket.Conn, ID uuid.UUID) *Client {
 	return &Client{
-		Game:     game,
-		conn:     conn,
-		send:     make(chan []byte, 256),
-		ID:       ID,
-		playInfo: NewPlayInfo(),
+		Center:       center,
+		conn:         conn,
+		send:         make(chan []byte, 256),
+		ID:           ID,
+		playInfo:     NewPlayInfo(),
+		property:     map[string]interface{}{},
+		propertyLock: &sync.RWMutex{},
 	}
 }
 
@@ -76,11 +98,29 @@ func (u *PlayInfo) Init() {
 	u.currentState = Wait
 }
 
+func (c *Client) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	c.property[key] = value
+}
+
+func (c *Client) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	if value, ok := c.property[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no property found")
+	}
+}
+
 func (c *Client) InitPlayerInfo() {
 	c.playInfo.Init()
 }
 
-func (c *Client) GetID() string {
+func (c *Client) GetID() uuid.UUID {
 	return c.ID
 }
 
@@ -113,12 +153,20 @@ func (c *Client) WsSend(data []byte) {
 	case c.send <- data:
 	default:
 		c.CloseWsSend()
-		c.Game.clients.Delete(c)
+		c.Center.RemoveClient(c)
 	}
 }
 
 func (c *Client) CloseWsSend() {
 	close(c.send)
+}
+
+func (c *Client) SetCurrRoom(room *Room) {
+	c.currRoom = room
+}
+
+func (c *Client) GetCurrRoom() *Room {
+	return c.currRoom
 }
 
 type PlayInfo struct {
@@ -137,14 +185,19 @@ const (
 	End
 )
 
-// readPump pumps messages from the websocket connection to the Game.
+// readPump pumps messages from the websocket connection to the Room.
 //
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.Game.OnLeave(c)
+		if c.IsLogin() {
+			c.Center.RemoveClient(c)
+			c.currRoom.OnLeave(c)
+		} else {
+			c.Center.RemoveGuest(c)
+		}
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -165,24 +218,18 @@ func (c *Client) readPump() {
 			c.Write([]byte("錯誤的回傳格式"))
 			continue
 		}
-		if req.MsgCode == 0 {
-			c.Write(WSResponse{
-				MsgCode:   0,
-				Data:      nil,
-				Success:   false,
-				ErrorCode: ErrForWrongRequestFormat,
-				Message:   "msgCode必須大於0",
-			}.Byte())
-			continue
-		}
 
-		switch req.MsgCode {
-		case ClientReady:
-			c.Game.OnReady(c)
-		case ClientHit:
-			c.Game.OnHit(c)
-		case ClientStand:
-			c.Game.OnStand(c)
+		switch req.Route {
+		case Login:
+			c.Center.HandleLogin(c, req.Data)
+		case Register:
+			c.Center.HandleRegister(c, req.Data)
+		case JoinRoom:
+			c.Center.HandleJoinRoom(c, req.Data)
+		case LeaveRoom:
+			c.Center.HandleLeaveRoom(c, req.Data)
+		case PlayBlackJack:
+			c.Center.HandlePlayBlackJack(c, req.Data)
 		}
 	}
 }
@@ -191,7 +238,7 @@ func (c *Client) GetConn() *websocket.Conn {
 	return c.conn
 }
 
-// writePump pumps messages from the Game to the websocket connection.
+// writePump pumps messages from the Room to the websocket connection.
 //
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
@@ -207,7 +254,7 @@ func (c *Client) writePump() {
 		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// The Game closed the channel.
+				// The Room closed the channel.
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -227,18 +274,57 @@ func (c *Client) Write(data []byte) {
 }
 
 // ServeWs handles websocket requests from the peer.
-func ServeWs(game *Game, w http.ResponseWriter, r *http.Request) {
+func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	client := NewClient(game, conn, utils.RandomPlayerName())
-	client.Game.OnJoin(client)
+	// 玩家有遊戲中心 但遊戲中心暫不保存訪客資訊
+	client := NewClient(center, conn, uuid.New())
 
+	isLogin := checkUserLogin(r, client)
+	if isLogin {
+		center.AddClient(client)
+		client.SetProperty("isLogin", true)
+		// 發送所有房間資訊給玩家
+		client.WsSend(GenSuccessRes(GetRoomsInfo, center.getRoomsInfo(), "所有房間資訊"))
+	} else {
+		center.AddGuest(client)
+	}
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+}
+
+func checkUserLogin(r *http.Request, client *Client) bool {
+	key, value, isExist := parseProtocol(r)
+	if isExist && key == "access_token" && value != "" {
+		_, err := utils.VerifyJWT(value)
+		if err == nil {
+			return true
+			//userIdStr := claims["userId"].(string)
+			//userId, _ := strconv.Atoi(userIdStr)
+			//client.SetProperty(key, value)
+			//client.SetProperty("userId", userId)
+		}
+	}
+	return false
+}
+
+func parseProtocol(r *http.Request) (string, string, bool) {
+	protocol := r.Header.Get("Sec-WebSocket-Protocol")
+	if protocol == "" {
+		return "", "", false
+	}
+
+	// protocol格式為: access_token, 789456123
+	split := strings.Split(protocol, ",")
+	if len(split) != 2 {
+		return "", "", false
+	}
+
+	return strings.TrimSpace(split[0]), strings.TrimSpace(split[1]), true
 }

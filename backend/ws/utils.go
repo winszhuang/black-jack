@@ -1,8 +1,36 @@
 package ws
 
-func SendErrRes(c IClient, msgCode MsgCode, errorCode WSError, message string) {
+func GenErrRes(route Route, errorCode WSError, message string) []byte {
+	return WSResponse{
+		Route:     route,
+		Data:      nil,
+		Success:   false,
+		ErrorCode: errorCode,
+		Message:   message,
+	}.Byte()
+}
+
+func GenErrResForInvalidRequest(route Route) []byte {
+	return GenErrRes(route, ErrForInvalidRequest, "錯誤的參數")
+}
+
+func GenErrResForUnauthorized(route Route) []byte {
+	return GenErrRes(route, ErrForUnauthorized, "未授權")
+}
+
+func GenSuccessRes(route Route, data interface{}, message string) []byte {
+	return WSResponse{
+		Route:     route,
+		Data:      data,
+		Success:   true,
+		ErrorCode: 0,
+		Message:   message,
+	}.Byte()
+}
+
+func SendErrRes(c IClient, msgCode OperationCode, errorCode WSError, message string) {
 	c.WsSend(WSResponse{
-		MsgCode:   msgCode,
+		Route:     PlayBlackJack,
 		Data:      nil,
 		Success:   false,
 		ErrorCode: errorCode,
@@ -10,9 +38,9 @@ func SendErrRes(c IClient, msgCode MsgCode, errorCode WSError, message string) {
 	}.Byte())
 }
 
-func SendSuccessRes(c IClient, msgCode MsgCode, data interface{}, message string) {
+func SendSuccessRes(c IClient, msgCode OperationCode, data interface{}, message string) {
 	c.WsSend(WSResponse{
-		MsgCode:   msgCode,
+		Route:     PlayBlackJack,
 		Data:      data,
 		Success:   true,
 		ErrorCode: 0,
@@ -20,9 +48,9 @@ func SendSuccessRes(c IClient, msgCode MsgCode, data interface{}, message string
 	}.Byte())
 }
 
-func BroadcastErrRes(game *Game, msgCode MsgCode, errorCode WSError, message string) {
+func BroadcastErrRes(game *Room, msgCode OperationCode, errorCode WSError, message string) {
 	game.Broadcast(WSResponse{
-		MsgCode:   msgCode,
+		Route:     PlayBlackJack,
 		Data:      nil,
 		Success:   false,
 		ErrorCode: errorCode,
@@ -30,9 +58,9 @@ func BroadcastErrRes(game *Game, msgCode MsgCode, errorCode WSError, message str
 	}.Byte())
 }
 
-func BroadcastSuccessRes(game *Game, msgCode MsgCode, data interface{}, message string) {
+func BroadcastSuccessRes(game *Room, msgCode OperationCode, data interface{}, message string) {
 	game.Broadcast(WSResponse{
-		MsgCode:   msgCode,
+		Route:     PlayBlackJack,
 		Data:      data,
 		Success:   true,
 		ErrorCode: 0,

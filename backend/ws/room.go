@@ -3,6 +3,7 @@ package ws
 import (
 	"black-jack/card"
 	"fmt"
+	"github.com/google/uuid"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"log"
 	"sync"
@@ -12,7 +13,11 @@ import (
 const MaxPoint = 21
 const DealerClientID = "dealer"
 
-type Game struct {
+type Room struct {
+	ID uuid.UUID
+
+	Name string // 房間名稱
+
 	clients *orderedmap.OrderedMap[IClient, bool] // 註冊的所有玩家
 
 	cardDealer card.ICardDealer // 發牌員
@@ -20,31 +25,33 @@ type Game struct {
 	mu *sync.RWMutex // 鎖
 }
 
-func NewGame(cardDealer card.ICardDealer) *Game {
-	g := &Game{
+func NewRoom(name string, cardDealer card.ICardDealer) *Room {
+	g := &Room{
 		clients:    orderedmap.New[IClient, bool](),
 		cardDealer: cardDealer,
 		mu:         &sync.RWMutex{},
+		ID:         uuid.New(),
+		Name:       name,
 	}
 	g.Restart()
 	return g
 }
 
 // Restart 重新開始遊戲
-func (g *Game) Restart() {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (r *Room) Restart() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	g.cardDealer.InitializeDeck()
-	g.cardDealer.ShuffleDeck()
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	r.cardDealer.InitializeDeck()
+	r.cardDealer.ShuffleDeck()
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 		client.InitPlayerInfo()
 	}
 }
 
-func (g *Game) checkAllPlayerReadyToStart() {
-	if !g.isAllPlayerSameState(Ready) {
+func (r *Room) checkAllPlayerReadyToStart() {
+	if !r.isAllPlayerSameState(Ready) {
 		return
 	}
 
@@ -52,23 +59,23 @@ func (g *Game) checkAllPlayerReadyToStart() {
 		// 等待1秒，開始遊戲
 		time.Sleep(time.Second)
 		// 開始遊戲
-		g.onGameStart()
+		r.onGameStart()
 	}()
 }
 
-func (g *Game) checkPlayerBustThenStop(c IClient) {
-	if g.isPlayerBust(c) {
-		g.mu.Lock()
+func (r *Room) checkPlayerBustThenStop(c IClient) {
+	if r.isPlayerBust(c) {
+		r.mu.Lock()
 		c.UpdateCurrentState(Stop)
-		g.mu.Unlock()
+		r.mu.Unlock()
 
-		BroadcastSuccessRes(g, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經停止動作", c.GetID()))
-		BroadcastSuccessRes(g, UpdatePlayersDetail, g.getAllClientDetail(), "更新所有玩家資料")
+		BroadcastSuccessRes(r, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經停止動作", c.GetID()))
+		BroadcastSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 	}
 }
 
-func (g *Game) checkAllPlayerStopThenEnd() {
-	if !g.isAllPlayerSameState(Stop) {
+func (r *Room) checkAllPlayerStopThenEnd() {
+	if !r.isAllPlayerSameState(Stop) {
 		return
 	}
 
@@ -76,41 +83,41 @@ func (g *Game) checkAllPlayerStopThenEnd() {
 		// 等待1秒，準備結束遊戲
 		time.Sleep(time.Second * 1)
 		// 結束遊戲
-		g.onGameEnd()
+		r.onGameEnd()
 	}()
 }
 
 // 玩家是否爆牌
-func (g *Game) isPlayerBust(c IClient) bool {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
+func (r *Room) isPlayerBust(c IClient) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	totalPoints := c.CalculateTotalPoints()
 	return totalPoints > MaxPoint
 }
 
-func (g *Game) updateAllPlayerState(state UserState) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (r *Room) updateAllPlayerState(state UserState) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 		client.UpdateCurrentState(state)
 	}
 }
 
-func (g *Game) calculateFinalWinners() ([]IClient, bool) {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
+func (r *Room) calculateFinalWinners() ([]IClient, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	// 玩家沒有1人以上就不用算了
-	if g.clients.Len() < 2 {
+	if r.clients.Len() < 2 {
 		return []IClient{}, false
 	}
 
 	// 紀錄玩家得分-玩家資訊
 	pointClientMap := map[int][]IClient{}
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 		clientPoint := client.CalculateTotalPoints()
 		// 爆點不理他
@@ -139,21 +146,21 @@ func (g *Game) calculateFinalWinners() ([]IClient, bool) {
 	return []IClient{}, false
 }
 
-func (g *Game) Broadcast(data []byte) {
-	g.mu.Lock()
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+func (r *Room) Broadcast(data []byte) {
+	r.mu.Lock()
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 		client.WsSend(data)
 	}
-	g.mu.Unlock()
+	r.mu.Unlock()
 }
 
-func (g *Game) getAllClientDetail() []ClientDetail {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (r *Room) getAllClientDetail() []ClientDetail {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	var allClientsDetail []ClientDetail
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 
 		allClientsDetail = append(allClientsDetail, client.GetGameDetail())
@@ -165,28 +172,28 @@ type ReadyNotification struct {
 	ID string `json:"id"`
 }
 
-func (g *Game) isAllPlayerSameState(state UserState) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (r *Room) isAllPlayerSameState(state UserState) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	count := 0
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
 		if client.GetCurrentState() == state {
 			count++
 		}
 	}
-	return count == g.clients.Len()
+	return count == r.clients.Len()
 }
 
-func (g *Game) buildAllPlayerCards() error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (r *Room) buildAllPlayerCards() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
+	for pair := r.clients.Oldest(); pair != nil; pair = pair.Next() {
 		client := pair.Key
-		card1, err := g.cardDealer.DealCard()
-		card2, err2 := g.cardDealer.DealCard()
+		card1, err := r.cardDealer.DealCard()
+		card2, err2 := r.cardDealer.DealCard()
 		if err != nil {
 			return err
 		}
@@ -199,21 +206,8 @@ func (g *Game) buildAllPlayerCards() error {
 	return nil
 }
 
-func (g *Game) getClient(clientID string) IClient {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	for pair := g.clients.Oldest(); pair != nil; pair = pair.Next() {
-		client := pair.Key
-		if client.GetID() == clientID {
-			return client
-		}
-	}
-	return nil
-}
-
-func (g *Game) isMoreThanOnePlayer() bool {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	return g.clients.Len() > 1
+func (r *Room) isMoreThanOnePlayer() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.clients.Len() > 1
 }

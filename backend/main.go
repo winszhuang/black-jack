@@ -2,6 +2,8 @@ package main
 
 import (
 	game "black-jack/card"
+	"black-jack/config"
+	"black-jack/repository"
 	"black-jack/ws"
 	"flag"
 	"log"
@@ -26,12 +28,18 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	cardDealer := game.NewCardDealer(rand.New(rand.NewSource(486486486213548)))
-	gameEngine := ws.NewGame(cardDealer)
+	db := config.InitDB()
+	userRepository := repository.NewUserRepository(db)
+	center := ws.NewGameCenter(
+		userRepository,
+		ws.NewRoom("一茗", game.NewCardDealer(rand.New(rand.NewSource(12345)))),
+		ws.NewRoom("二穴", game.NewCardDealer(rand.New(rand.NewSource(11111)))),
+		ws.NewRoom("三井", game.NewCardDealer(rand.New(rand.NewSource(78945)))),
+	)
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		ws.ServeWs(gameEngine, w, r)
+		ws.ServeWs(center, w, r)
 	})
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
