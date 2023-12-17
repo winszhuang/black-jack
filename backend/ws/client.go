@@ -40,6 +40,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+	Subprotocols: []string{"access_token", "*"},
 }
 
 // Client is a middleman between the websocket connection and the Room.
@@ -284,7 +285,7 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	// 玩家有遊戲中心 但遊戲中心暫不保存訪客資訊
 	client := NewClient(center, conn, uuid.New())
 
-	isLogin := checkUserLogin(r, client)
+	isLogin := checkUserLogin(r)
 	if isLogin {
 		center.AddClient(client)
 		client.SetProperty("isLogin", true)
@@ -299,7 +300,7 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 }
 
-func checkUserLogin(r *http.Request, client *Client) bool {
+func checkUserLogin(r *http.Request) bool {
 	key, value, isExist := parseProtocol(r)
 	if isExist && key == "access_token" && value != "" {
 		_, err := utils.VerifyJWT(value)
