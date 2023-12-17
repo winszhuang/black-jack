@@ -1,5 +1,6 @@
 package ws
 
+import "C"
 import (
 	"black-jack/models"
 	"black-jack/repository"
@@ -72,6 +73,10 @@ type RoomInfo struct {
 }
 
 func (gc *GameCenter) HandleLogin(c IClient, data interface{}) {
+	if c.IsLogin() {
+		c.WsSend(GenErrRes(Login, ErrForDuplicateLogin, "已經登入過了!!"))
+		return
+	}
 
 	mapData, ok := data.(map[string]interface{})
 	if !ok {
@@ -178,6 +183,8 @@ func (gc *GameCenter) HandleJoinRoom(c IClient, data interface{}) {
 		c.WsSend(GenErrRes(JoinRoom, ErrForCantFindThisRoom, "無此房間"))
 		return
 	}
+
+	c.WsSend(GenSuccessRes(JoinRoom, room.ID, "進入房間"))
 
 	room.OnJoin(c)
 	c.SetCurrRoom(room)

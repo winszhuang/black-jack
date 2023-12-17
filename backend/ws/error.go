@@ -14,4 +14,5 @@ const (
 	ErrForInvalidRequest
 	ErrForCantFindThisRoom
 	ErrForClientNotInRoom
+	ErrForDuplicateLogin
 )

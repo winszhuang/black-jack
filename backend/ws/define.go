@@ -14,6 +14,7 @@ const (
 	LeaveRoom     Route = "leave_room"
 	PlayBlackJack Route = "play_black_jack"
 	GetRoomsInfo  Route = "get_rooms_info"
+	WsConnected   Route = "ws_connected"
 )
 
 type OperationCode int

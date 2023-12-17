@@ -195,7 +195,9 @@ func (c *Client) readPump() {
 	defer func() {
 		if c.IsLogin() {
 			c.Center.RemoveClient(c)
-			c.currRoom.OnLeave(c)
+			if c.currRoom != nil {
+				c.currRoom.OnLeave(c)
+			}
 		} else {
 			c.Center.RemoveGuest(c)
 		}
@@ -274,6 +276,10 @@ func (c *Client) Write(data []byte) {
 	c.send <- data
 }
 
+type WsConnectedInfo struct {
+	IsLogin bool `json:"is_login"`
+}
+
 // ServeWs handles websocket requests from the peer.
 func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -291,8 +297,10 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 		client.SetProperty("isLogin", true)
 		// 發送所有房間資訊給玩家
 		client.WsSend(GenSuccessRes(GetRoomsInfo, center.getRoomsInfo(), "所有房間資訊"))
+		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: true}, "使用者已經登入"))
 	} else {
 		center.AddGuest(client)
+		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: false}, "使用者尚未登入"))
 	}
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
