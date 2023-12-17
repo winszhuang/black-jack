@@ -1,12 +1,36 @@
-import { EMsgCode } from '@/enums/msg-code'
+import { EOperationCode } from '@/enums/msg-code'
+import { EWsRoute } from '@/enums/ws-route'
+
+type WsRequestLoginData = {
+  username: string
+  password: string
+}
+type WSRegisterReqData = {
+  username: string
+  password: string
+}
+
+type WSJoinRoomReqData = {
+  room_id: string
+}
+
+type WSLeaveRoomReqData = {
+  room_id: string
+}
+
+type WSPlayGameReqData = {
+  opcode: EOperationCode
+  gametype: number
+  gamedata: any
+}
 
 type WsRequest = {
   data: any
-  msg_code: EMsgCode
+  route: EWsRoute
 }
 
 type WsResponse = {
-  msg_code: EMsgCode
+  route: EWsRoute
   data: any
   success: boolean
   error_code: string
@@ -14,14 +38,14 @@ type WsResponse = {
 }
 
 type WsEvents = {
-  [EMsgCode.SomeOneJoin]: null
-  [EMsgCode.SomeOneLeave]: { data: string }
-  [EMsgCode.SomeOneReady]: { data: string }
-  [EMsgCode.GameStart]: { data: string }
-  [EMsgCode.SomeOneHit]: { data: string }
-  [EMsgCode.SomeOneStand]: { data: string }
-  [EMsgCode.GameOver]: { data: string }
-  [EMsgCode.UpdatePlayersDetail]: { data: string }
+  [EOperationCode.SomeOneJoin]: null
+  [EOperationCode.SomeOneLeave]: { data: string }
+  [EOperationCode.SomeOneReady]: { data: string }
+  [EOperationCode.GameStart]: { data: string }
+  [EOperationCode.SomeOneHit]: { data: string }
+  [EOperationCode.SomeOneStand]: { data: string }
+  [EOperationCode.GameOver]: { data: string }
+  [EOperationCode.UpdatePlayersDetail]: { data: string }
 }
 
 type ResponseClientJoin = string

@@ -1,19 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { WsRequest, WsResponse } from '@/types/ws'
+import { EWsRoute } from '@/enums/ws-route'
+import { WsResponse } from '@/types/ws'
 
 // useWs.ts
-const eventList: Array<{ msg_code: number; callback: (data: WsResponse) => void }> = []
+const eventList: Array<{ route: EWsRoute; callback: (data: WsResponse) => void }> = []
 let ws: WebSocket
 
-export function useWs<E extends number>(
-  config = {
-    dev: (import.meta.env.VITE_API_URL as string).replace('http', 'ws'),
-    prod: (import.meta.env.VITE_API_URL as string).replace('https', 'wss')
-  }
-) {
-  const isDev = import.meta.env.DEV
-  ws ??= new WebSocket(isDev ? config.dev : config.prod)
+export function useWs<E extends EWsRoute>(url: string | URL, protocols?: string | string[]) {
+  ws ??= new WebSocket(url, protocols)
 
   ws.onmessage = async (e) => {
     const jsonStr = e.data as string
@@ -27,31 +22,23 @@ export function useWs<E extends number>(
     }
 
     for (const ev of eventList) {
-      if (ev.msg_code === data.msg_code) {
+      if (ev.route === data.route) {
         return ev.callback(data)
       }
     }
   }
 
-  function on(msgCode: E, callback: (data: WsResponse) => void) {
+  function on(route: E, callback: (data: WsResponse) => void) {
     eventList.push({
-      msg_code: msgCode as number,
+      route: route as EWsRoute,
       callback
     })
   }
 
-  function onOpen(callback = () => console.log('ws open connection')) {
-    ws.onopen = () => callback()
-  }
-
-  function onClose(callback = () => console.log('ws close connection')) {
-    ws.onclose = () => callback()
-  }
-
-  function send(msgCode: E, data?: any) {
+  function send(route: E, data?: any) {
     ws.send(
       JSON.stringify({
-        msg_code: msgCode,
+        route,
         data
       })
     )
@@ -60,8 +47,6 @@ export function useWs<E extends number>(
   return {
     send,
     on,
-    onOpen,
-    onClose,
-    ws
+    originWs: ws
   }
 }

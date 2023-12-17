@@ -1,4 +1,4 @@
-export enum EMsgCode {
+export enum EOperationCode {
   // 玩家加入
   ClientJoin = 1,
 
