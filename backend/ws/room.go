@@ -69,7 +69,7 @@ func (r *Room) checkPlayerBustThenStop(c IClient) {
 		c.UpdateCurrentState(Stop)
 		r.mu.Unlock()
 
-		BroadcastGameSuccessRes(r, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經停止動作", c.GetID()))
+		BroadcastGameSuccessRes(r, BroadcastStand, c.GetLoginInfo(), fmt.Sprintf("ClientID-%s玩家已經停止動作", c.GetLoginInfo().UserName))
 		BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 	}
 }

@@ -135,8 +135,12 @@ func (c *Client) InitPlayerInfo() {
 	c.playInfo.Init()
 }
 
-func (c *Client) GetID() uuid.UUID {
-	return c.ID
+func (c *Client) GetID() string {
+	info := c.GetLoginInfo()
+	if info != nil {
+		return info.UserID
+	}
+	return c.ID.String()
 }
 
 func (c *Client) GetCurrentState() UserState {
@@ -153,10 +157,10 @@ func (c *Client) CalculateTotalPoints() int {
 
 func (c *Client) GetGameDetail() ClientDetail {
 	return ClientDetail{
-		ID:    c.ID,
 		Deck:  c.playInfo.deck,
 		State: c.playInfo.currentState,
 		Name:  c.GetLoginInfo().UserName,
+		ID:    c.GetLoginInfo().UserID,
 	}
 }
 
@@ -309,8 +313,8 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 
 	loginData, isLogin := checkUserLogin(r)
 	if isLogin {
-		client.UpdateLoginInfo(&LoginInfo{UserName: loginData.Name})
 		center.AddClient(client)
+		client.UpdateLoginInfo(&LoginInfo{UserName: loginData.Name, UserID: loginData.ID.String()})
 		client.SetProperty("isLogin", true)
 		// 發送所有房間資訊給玩家
 		client.WsSend(GenSuccessRes(GetRoomsInfo, center.getRoomsInfo(), "所有房間資訊"))

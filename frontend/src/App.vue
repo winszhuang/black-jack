@@ -15,14 +15,14 @@ onConnectSuccess.subscribe((info) => {
 
 const handleIsLogin = (info: LoginData) => {
   myId.value = info.user_id
-  if (route.name === ERoute.Entrance) {
+  if (route.path === '/') {
     router.push({ name: ERoute.Lobby })
   }
 }
 
 const handleNotLogin = () => {
   localStorage.removeItem('access_token')
-  if (route.name !== ERoute.Entrance) {
+  if (route.path !== '/') {
     router.push({ name: ERoute.Entrance })
   }
 }

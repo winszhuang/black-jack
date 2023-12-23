@@ -1,13 +1,35 @@
 <script setup lang="ts">
 import PlayerZone from '@/components/PlayerZone.vue'
 import { useBlackJack } from '@/composables/use-black-jack'
-import { notify } from '@/utils/toast'
 
-const { playersDetail, myId, messageList, onSomeOneJoinRoom, onReady, onHit, onStand } =
-  useBlackJack()
+const {
+  playersDetail,
+  myId,
+  messageList,
+  onSomeOneJoinRoom,
+  onSomeOneStand,
+  onSomeOneWin,
+  onReady,
+  onHit,
+  onStand,
+  pushNotify
+} = useBlackJack()
 
 onSomeOneJoinRoom.subscribe((userData) => {
-  notify(`玩家[${userData.name}]進入房間 ~`)
+  pushNotify(`玩家[${userData.user_name}]進入房間 ~`)
+})
+
+onSomeOneStand.subscribe((userData) => {
+  pushNotify(`玩家[${userData.user_name}]停止要牌`)
+})
+
+onSomeOneWin.subscribe((users) => {
+  const userNames = users.reduce((curr, prev) => curr + prev.user_name + ' ', '')
+  if (users.length === 0) {
+    pushNotify('沒有任何玩家獲勝 ~')
+  } else {
+    pushNotify(`玩家[${userNames}]獲得勝利!!`)
+  }
 })
 </script>
 
@@ -30,21 +52,6 @@ onSomeOneJoinRoom.subscribe((userData) => {
         :on-stand="onStand"
       >
       </PlayerZone>
-    </div>
-    <div class="row3">
-      <h3>Scoreboard:</h3>
-      <table>
-        <tr>
-          <th>Wins</th>
-          <th>Losses</th>
-          <th>Draws</th>
-        </tr>
-        <tr>
-          <td><span id="wins">0</span></td>
-          <td><span id="losses">0</span></td>
-          <td><span id="draws">0</span></td>
-        </tr>
-      </table>
     </div>
   </div>
 </template>

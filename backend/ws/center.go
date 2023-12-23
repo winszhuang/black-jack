@@ -11,7 +11,7 @@ import (
 )
 
 type GameCenter struct {
-	rooms    map[*Room]bool   // 所有房間
+	rooms    []*Room          // 所有房間
 	clients  map[IClient]bool // 註冊的所有玩家
 	guests   map[IClient]bool // 訪客
 	mu       *sync.RWMutex    // 鎖
@@ -19,10 +19,10 @@ type GameCenter struct {
 }
 
 func NewGameCenter(userRepo repository.IUserRepository, multiGame ...*Room) *GameCenter {
-	rooms := make(map[*Room]bool)
+	rooms := make([]*Room, 0)
 	if len(multiGame) > 0 {
 		for _, game := range multiGame {
-			rooms[game] = true
+			rooms = append(rooms, game)
 		}
 	}
 	return &GameCenter{
@@ -118,6 +118,7 @@ func (gc *GameCenter) HandleLogin(c IClient, data interface{}) {
 	c.SetProperty("isLogin", true)
 	c.UpdateLoginInfo(&LoginInfo{
 		UserName: user.Name,
+		UserID:   user.ID.String(),
 	})
 
 	// 發送所有房間資訊給玩家
@@ -131,7 +132,7 @@ type RoomInfo struct {
 
 func (gc *GameCenter) getRoomsInfo() []RoomInfo {
 	var roomsInfo []RoomInfo
-	for room, _ := range gc.rooms {
+	for _, room := range gc.rooms {
 		roomsInfo = append(roomsInfo, RoomInfo{
 			ID:   room.ID,
 			Name: room.Name,
@@ -266,10 +267,7 @@ func (gc *GameCenter) HandlePlayBlackJack(c IClient, data interface{}) {
 }
 
 func (gc *GameCenter) findRoomByID(id uuid.UUID) *Room {
-	for room, isExist := range gc.rooms {
-		if !isExist {
-			continue
-		}
+	for _, room := range gc.rooms {
 		if room.ID == id {
 			return room
 		}

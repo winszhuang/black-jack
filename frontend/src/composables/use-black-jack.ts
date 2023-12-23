@@ -29,7 +29,9 @@ const connectSuccess$ = new Subject<LoginData>()
 const joinRoomSuccess$ = new Subject<string>()
 const updatePlayerDetail$ = new Subject<PlayerDetail[]>()
 
-const someOneJoin$ = new Subject<{ id: string; name: string }>()
+const someOneJoin$ = new Subject<ClientInfo>()
+const someOneStand$ = new Subject<ClientInfo>()
+const someOneWin$ = new Subject<ClientInfo[]>()
 
 export const useBlackJack = () => {
   ws ??= genWsInstance()
@@ -45,7 +47,8 @@ export const useBlackJack = () => {
   ws.on(EWsRoute.Login, (res) => {
     pushNotify(res.message, res.success ? EMessageType.Success : EMessageType.Error)
     if (res.success) {
-      myId.value = res.data
+      const source = res.data as { token: string; user_id: string }
+      myId.value = source.user_id
       loginSuccess$.next(res.data)
     }
   })
@@ -73,6 +76,12 @@ export const useBlackJack = () => {
       case EOperationCode.BroadcastJoin:
         someOneJoin$.next(gameData.gamedata)
         break
+      case EOperationCode.BroadcastStand:
+        someOneStand$.next(gameData.gamedata)
+        break
+      case EOperationCode.BroadcastGameOver:
+        someOneWin$.next(gameData.gamedata)
+        break
       case EOperationCode.UpdatePlayersDetail:
         updatePlayerDetail$.next(gameData.gamedata)
         break
@@ -90,7 +99,7 @@ export const useBlackJack = () => {
     playersDetail.value = detail
   })
 
-  const pushNotify = (message: string, type: EMessageType) => {
+  const pushNotify = (message: string, type = EMessageType.Success) => {
     const messageItem: MessageItem = {
       text: message,
       id: `${performance.now()}-${messageCounter++}`,
@@ -125,6 +134,7 @@ export const useBlackJack = () => {
 
   return {
     wsSend,
+    pushNotify,
 
     messageList,
     playersDetail,
@@ -137,6 +147,8 @@ export const useBlackJack = () => {
     onJoinRoomSuccess: joinRoomSuccess$,
 
     onSomeOneJoinRoom: someOneJoin$,
+    onSomeOneStand: someOneStand$,
+    onSomeOneWin: someOneWin$,
     onUpdatePlayerDetail: updatePlayerDetail$,
 
     onReady,

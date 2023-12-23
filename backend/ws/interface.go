@@ -2,17 +2,17 @@ package ws
 
 import (
 	"black-jack/card"
-	"github.com/google/uuid"
 )
 
 type ClientDetail struct {
-	ID    uuid.UUID `json:"id"`
+	ID    string    `json:"id"`
 	Deck  card.Deck `json:"deck"`
 	State UserState `json:"state"`
 	Name  string    `json:"name"`
 }
 
 type LoginInfo struct {
+	UserID   string `json:"user_id"`
 	UserName string `json:"user_name"`
 	Avatar   string `json:"avatar"`
 }
@@ -23,7 +23,7 @@ type IClient interface {
 	SetProperty(key string, value interface{})
 	GetProperty(key string) (interface{}, error)
 	InitPlayerInfo()
-	GetID() uuid.UUID
+	GetID() string
 	GetCurrentState() UserState
 	UpdateCurrentState(state UserState)
 	CalculateTotalPoints() int

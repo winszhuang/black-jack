@@ -3,21 +3,15 @@ package ws
 import (
 	"black-jack/card"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
 )
-
-type NewClientRes struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
-}
 
 func (r *Room) OnJoin(c IClient) {
 	r.mu.Lock()
 	r.clients.Set(c, true)
 	r.mu.Unlock()
 
-	BroadcastGameSuccessRes(r, BroadcastJoin, NewClientRes{ID: c.GetID(), Name: c.GetLoginInfo().UserName}, fmt.Sprintf("玩家%s進入頻道", c.GetID()))
+	BroadcastGameSuccessRes(r, BroadcastJoin, c.GetLoginInfo(), fmt.Sprintf("玩家%s進入頻道", c.GetLoginInfo().UserName))
 	BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資訊")
 }
 
@@ -35,7 +29,7 @@ func (r *Room) OnLeave(c IClient) {
 		BroadcastGameSuccessRes(r, BroadcastReStart, nil, fmt.Sprintf("玩家人數不到2人 遊戲重新"))
 		BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資訊")
 	} else {
-		BroadcastGameSuccessRes(r, BroadcastLeave, c.GetID(), fmt.Sprintf("ClientID-%s玩家離開遊戲", c.GetID()))
+		BroadcastGameSuccessRes(r, BroadcastLeave, c.GetLoginInfo(), fmt.Sprintf("ClientID-%s玩家離開遊戲", c.GetLoginInfo().UserName))
 		BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資訊")
 	}
 }
@@ -52,8 +46,7 @@ func (r *Room) OnReady(c IClient) {
 	c.UpdateCurrentState(Ready)
 	r.mu.Unlock()
 
-	SendGameSuccessRes(c, ClientReady, c.GetID(), fmt.Sprintf("你已準備"))
-	BroadcastGameSuccessRes(r, BroadcastReady, c.GetID(), fmt.Sprintf("ClientID-%s玩家已經按下準備", c.GetID()))
+	BroadcastGameSuccessRes(r, BroadcastReady, c.GetLoginInfo(), fmt.Sprintf("ClientID-%s玩家已經按下準備", c.GetLoginInfo().UserID))
 	BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 
 	// 需要大於一個玩家才能開始遊戲
@@ -74,7 +67,7 @@ func (r *Room) onGameStart() {
 }
 
 type NewCardInfo struct {
-	ClientID uuid.UUID `json:"client_id"`
+	ClientID string    `json:"client_id"`
 	CardInfo card.Card `json:"card_info"`
 }
 
@@ -106,7 +99,7 @@ func (r *Room) OnHit(c IClient) {
 	}
 
 	SendGameSuccessRes(c, ClientHit, result, fmt.Sprintf("你獲得新的一副牌"))
-	BroadcastGameSuccessRes(r, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.GetID()))
+	BroadcastGameSuccessRes(r, BroadcastHit, result, fmt.Sprintf("ClientID-%s玩家獲得新牌", c.GetLoginInfo().UserName))
 	BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 
 	r.checkPlayerBustThenStop(c)
@@ -126,7 +119,7 @@ func (r *Room) OnStand(c IClient) {
 	c.UpdateCurrentState(Stop)
 	r.mu.Unlock()
 
-	BroadcastGameSuccessRes(r, BroadcastStand, c.GetID(), fmt.Sprintf("ClientID-%s玩家停止要牌", c.GetID()))
+	BroadcastGameSuccessRes(r, BroadcastStand, c.GetLoginInfo(), fmt.Sprintf("ClientID-%s玩家停止要牌", c.GetLoginInfo().UserName))
 	BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 
 	r.checkAllPlayerStopThenEnd()
@@ -137,18 +130,18 @@ func (r *Room) onGameEnd() {
 
 	winners, isExist := r.calculateFinalWinners()
 	if !isExist {
-		BroadcastGameSuccessRes(r, BroadcastGameOver, []uuid.UUID{}, "沒有任何玩家獲勝")
+		BroadcastGameSuccessRes(r, BroadcastGameOver, []LoginInfo{}, "沒有任何玩家獲勝")
 		return
 	}
 
-	winnerIds := []uuid.UUID{}
+	var result []LoginInfo
 	message := ""
 	for _, winner := range winners {
-		id := winner.GetID()
-		winnerIds = append(winnerIds, id)
-		message += id.String() + " "
+		userData := winner.GetLoginInfo()
+		result = append(result, *userData)
+		message += userData.UserName + " "
 	}
-	BroadcastGameSuccessRes(r, BroadcastGameOver, winnerIds, fmt.Sprintf("獲得勝利的是: ")+message)
+	BroadcastGameSuccessRes(r, BroadcastGameOver, result, fmt.Sprintf("獲得勝利的是: ")+message)
 	BroadcastGameSuccessRes(r, UpdatePlayersDetail, r.getAllClientDetail(), "更新所有玩家資料")
 
 	time.Sleep(time.Second * 3)
