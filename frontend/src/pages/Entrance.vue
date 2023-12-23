@@ -58,51 +58,63 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <div class="bg-gray-800 flex items-center justify-center h-screen">
-    <div class="bg-gray-700 text-white p-8 rounded-md w-96">
-      <h2 class="text-xl mb-4">Please {{ currentMode }} to your account</h2>
-      <div class="mb-4">
-        <label for="username" class="block mb-2">Username</label>
-        <input
-          v-model="userInput.username"
-          type="text"
-          id="username"
-          class="bg-gray-800 border border-gray-600 p-2 rounded w-full"
-          placeholder="Username"
-        />
+  <div class="bg-primary-400 flex items-center justify-center h-screen text-white-100 font-thin">
+    <div class="min-w-[380px]">
+      <div class="px-8 pt-10 pb-2 rounded-t-2xl bg-primary-200 text-center">
+        <h2 class="text-4xl font-sans font-light text-white-50">
+          {{ currentMode === Mode.Login ? 'Login' : 'Register ' }}
+        </h2>
       </div>
-      <div class="mb-4">
-        <label for="password" class="block mb-2">Password</label>
-        <input
-          v-model="userInput.password"
-          type="password"
-          id="password"
-          class="bg-gray-800 border border-gray-600 p-2 rounded w-full"
-          placeholder="Password"
-        />
-      </div>
-      <button
-        @click="onSubmit"
-        v-if="currentMode === Mode.Login"
-        class="bg-gradient-to-r from-orange-400 to-pink-500 text-white py-2 px-4 rounded w-full mb-4"
-      >
-        Login
-      </button>
-      <button
-        @click="onSubmit"
-        v-if="currentMode === Mode.Register"
-        class="bg-gradient-to-r from-orange-400 to-pink-500 text-white py-2 px-4 rounded w-full mb-4"
-      >
-        Register
-      </button>
-      <div class="text-center">
-        <span class="text-gray-300">Don't have an account?</span>
+      <div class="p-8 rounded-b-2xl bg-primary-200">
+        <div class="mb-4">
+          <label for="username" class="block mb-2">Username</label>
+          <input
+            v-model="userInput.username"
+            type="text"
+            id="username"
+            class="bg-primary-400 border border-gray-600 p-2 rounded w-full"
+            placeholder="Username"
+          />
+        </div>
+        <div class="mb-4">
+          <label for="password" class="block mb-2">Password</label>
+          <input
+            v-model="userInput.password"
+            type="password"
+            id="password"
+            class="bg-primary-400 border border-gray-600 p-2 rounded w-full"
+            placeholder="Password"
+          />
+        </div>
         <button
-          @click="changeMode(Mode.Register)"
-          class="text-white border border-pink-500 py-2 px-4 rounded"
+          @click="onSubmit"
+          v-if="currentMode === Mode.Login"
+          class="mt-3 py-2 px-4 rounded w-full mb-4 bg-yellow-100 text-dark-900 font-normal text-xl"
         >
-          REGISTER
+          Login
         </button>
+        <button
+          @click="onSubmit"
+          v-if="currentMode === Mode.Register"
+          class="mt-3 py-2 px-4 rounded w-full mb-4 bg-yellow-100 text-dark-900 font-normal text-xl"
+        >
+          Register
+        </button>
+        <div class="mt-10 text-center">
+          <span class="text-gray-300">{{
+            currentMode === Mode.Login ? `Don't have an account ?` : 'Already have an account ?'
+          }}</span>
+          <button
+            v-if="currentMode === Mode.Login"
+            @click="changeMode(Mode.Register)"
+            class="py-2 px-3 text-yellow-50 underline"
+          >
+            REGISTER
+          </button>
+          <button v-else @click="changeMode(Mode.Login)" class="py-2 px-3 text-yellow-50 underline">
+            LOGIN
+          </button>
+        </div>
       </div>
     </div>
   </div>
