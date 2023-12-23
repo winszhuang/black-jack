@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import PlayerZone from '@/components/PlayerZone.vue'
 import { useBlackJack } from '@/composables/use-black-jack'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 const {
   playersDetail,
+  rooms,
   myId,
   messageList,
   onSomeOneJoinRoom,
@@ -14,6 +17,12 @@ const {
   onStand,
   pushNotify
 } = useBlackJack()
+
+const route = useRoute()
+const roomName = computed(() => {
+  const room = rooms.value.find((room) => room.id === route.params.roomId)
+  return room?.name
+})
 
 onSomeOneJoinRoom.subscribe((userData) => {
   pushNotify(`玩家[${userData.user_name}]進入房間 ~`)
@@ -35,23 +44,28 @@ onSomeOneWin.subscribe((users) => {
 
 <template>
   <MessageList :message-list="messageList" />
-  <h1 class="title">BLACK JACK</h1>
-  <div class="main">
-    <h2><span id="command">Gambling Time</span></h2>
-    <div class="row1">
-      <PlayerZone
-        v-for="player in playersDetail"
-        :key="player.id"
-        :user-id="player.id"
-        :name="player.name"
-        :cards="player.deck"
-        :user-state="player.state"
-        :is-me="player.id === myId"
-        :on-ready="onReady"
-        :on-hit="onHit"
-        :on-stand="onStand"
-      >
-      </PlayerZone>
+  <div class="bg-primary-400 h-screen">
+    <header class="bg-primary-300">
+      <h1 class="text-white-50 font-light text-3xl px-8 py-3">{{ roomName || 'ROOM' }}</h1>
+    </header>
+    <div class="p-10">
+      <div class="bg-primary-100 rounded-xl">
+        <div class="flex flex-wrap flex-row p-4 border-b-2 min-h-[700px] gap-6">
+          <PlayerZone
+            v-for="player in playersDetail"
+            :key="player.id"
+            :user-id="player.id"
+            :name="player.name"
+            :cards="player.deck"
+            :user-state="player.state"
+            :is-me="player.id === myId"
+            :on-ready="onReady"
+            :on-hit="onHit"
+            :on-stand="onStand"
+          >
+          </PlayerZone>
+        </div>
+      </div>
     </div>
   </div>
 </template>

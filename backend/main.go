@@ -32,9 +32,9 @@ func main() {
 	userRepository := repository.NewUserRepository(db)
 	center := ws.NewGameCenter(
 		userRepository,
-		ws.NewRoom("一茗", game.NewCardDealer(rand.New(rand.NewSource(12345)))),
-		ws.NewRoom("二穴", game.NewCardDealer(rand.New(rand.NewSource(11111)))),
-		ws.NewRoom("三井", game.NewCardDealer(rand.New(rand.NewSource(78945)))),
+		ws.NewRoom("The First Room", game.NewCardDealer(rand.New(rand.NewSource(12345)))),
+		ws.NewRoom("The Second Room", game.NewCardDealer(rand.New(rand.NewSource(11111)))),
+		ws.NewRoom("The Third Room", game.NewCardDealer(rand.New(rand.NewSource(78945)))),
 	)
 
 	http.HandleFunc("/", serveHome)
