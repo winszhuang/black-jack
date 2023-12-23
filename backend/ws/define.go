@@ -88,7 +88,7 @@ type WSLeaveRoomReqData struct {
 	RoomID uuid.UUID `json:"room_id"`
 }
 
-type WSPlayGameReqData struct {
+type WSPlayGameReqResData struct {
 	OpCode   OperationCode `json:"opcode"`
 	GameType int           `json:"gametype"`
 	GameData interface{}   `json:"gamedata"`

@@ -3,14 +3,25 @@ import { useBlackJack } from '@/composables/use-black-jack'
 import { ERoute } from '@/enums/route'
 import { EWsRoute } from '@/enums/ws-route'
 import { router } from '@/router'
+import { notify } from '@/utils/toast'
 import { ref } from 'vue'
 
-const { wsSend, onLoginSuccess } = useBlackJack()
+const { wsSend, onLoginSuccess, onRegisterSuccess } = useBlackJack()
 
-onLoginSuccess.subscribe((token) => {
-  console.log('token', token)
-  localStorage.setItem('access_token', token)
+onLoginSuccess.subscribe((loginInfo) => {
+  localStorage.setItem('access_token', loginInfo.token)
   router.push({ name: ERoute.Lobby })
+})
+
+onRegisterSuccess.subscribe(() => {
+  notify('註冊成功! 直接幫你登入哦')
+  setTimeout(() => {
+    const req = {
+      username: userInput.value.username,
+      password: userInput.value.password
+    }
+    wsSend(EWsRoute.Login, req)
+  }, 1000)
 })
 
 const userInput = ref({
@@ -78,6 +89,7 @@ const onSubmit = () => {
         Login
       </button>
       <button
+        @click="onSubmit"
         v-if="currentMode === Mode.Register"
         class="bg-gradient-to-r from-orange-400 to-pink-500 text-white py-2 px-4 rounded w-full mb-4"
       >

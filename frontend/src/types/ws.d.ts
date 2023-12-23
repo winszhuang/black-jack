@@ -18,7 +18,7 @@ type WSLeaveRoomReqData = {
   room_id: string
 }
 
-type WSPlayGameReqData = {
+type WSPlayGameReqResData = {
   opcode: EOperationCode
   gametype: number
   gamedata: any

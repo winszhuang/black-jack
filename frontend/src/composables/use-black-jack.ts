@@ -1,9 +1,10 @@
 import { EOperationCode } from '@/enums/msg-code'
 import { useWs } from './use-ws'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { EWsRoute } from '@/enums/ws-route'
 import { EMessageType } from '@/enums/message'
 import { Subject } from 'rxjs'
+import { WSPlayGameReqResData } from '@/types/ws'
 
 const genWsInstance = () => {
   const isDev = import.meta.env.DEV
@@ -22,26 +23,38 @@ const rooms = ref<Room[]>([])
 let messageCounter = 0
 
 // #NOTICE 這些放在use裡面會有問題
-const loginSuccess$ = new Subject<string>()
-const connectSuccess$ = new Subject<{ is_login: boolean }>()
+const loginSuccess$ = new Subject<{ token: string; user_id: string }>()
+const registerSuccess$ = new Subject<void>()
+const connectSuccess$ = new Subject<LoginData>()
 const joinRoomSuccess$ = new Subject<string>()
+const updatePlayerDetail$ = new Subject<PlayerDetail[]>()
 
-export function useBlackJack() {
+const someOneJoin$ = new Subject<{ id: string; name: string }>()
+
+export const useBlackJack = () => {
   ws ??= genWsInstance()
 
   ws.on(EWsRoute.WsConnected, (res) => {
+    const loginData = res.data as LoginData
+    if (loginData.is_login && loginData.user_id) {
+      myId.value = loginData.user_id!
+    }
     connectSuccess$.next(res.data)
   })
 
   ws.on(EWsRoute.Login, (res) => {
     pushNotify(res.message, res.success ? EMessageType.Success : EMessageType.Error)
     if (res.success) {
+      myId.value = res.data
       loginSuccess$.next(res.data)
     }
   })
 
   ws.on(EWsRoute.Register, (res) => {
-    console.log(res)
+    pushNotify(res.message, res.success ? EMessageType.Success : EMessageType.Error)
+    if (res.success) {
+      registerSuccess$.next(res.data)
+    }
   })
   ws.on(EWsRoute.JoinRoom, (res) => {
     pushNotify(res.message, res.success ? EMessageType.Success : EMessageType.Error)
@@ -55,6 +68,15 @@ export function useBlackJack() {
   ws.on(EWsRoute.PlayBlackJack, (res) => {
     if (!res.success) return
     console.log(res)
+    const gameData = res.data as WSPlayGameReqResData
+    switch (gameData.opcode) {
+      case EOperationCode.BroadcastJoin:
+        someOneJoin$.next(gameData.gamedata)
+        break
+      case EOperationCode.UpdatePlayersDetail:
+        updatePlayerDetail$.next(gameData.gamedata)
+        break
+    }
   })
   ws.on(EWsRoute.GetRoomsInfo, (res) => {
     pushNotify(res.message, res.success ? EMessageType.Success : EMessageType.Error)
@@ -64,39 +86,11 @@ export function useBlackJack() {
     console.log(rooms.value)
   })
 
-  // ws.on(EOperationCode.ClientJoin, (res) => {
-  //   pushNotify(res.message)
-  //   myId.value = res.data as string
-  // })
+  updatePlayerDetail$.subscribe((detail) => {
+    playersDetail.value = detail
+  })
 
-  // ws.on(EOperationCode.BroadcastJoin, (res) => {
-  //   pushNotify(res.message)
-  //   console.log('res.message', res.message)
-  //   console.log('res.data', res.data)
-  // })
-
-  // ws.on(EOperationCode.BroadcastLeave, (res) => {
-  //   pushNotify(res.message)
-  // })
-
-  // ws.on(EOperationCode.BroadcastGameStart, (res) => {
-  //   pushNotify(res.message)
-  // })
-
-  // ws.on(EOperationCode.BroadcastGameOver, (res) => {
-  //   pushNotify(res.message)
-  // })
-
-  // ws.on(EOperationCode.BroadcastReStart, (res) => {
-  //   pushNotify(res.message)
-  // })
-
-  // ws.on(EOperationCode.UpdatePlayersDetail, (res) => {
-  //   console.log(res.data)
-  //   playersDetail.value = res.data as PlayerDetail[]
-  // })
-
-  function pushNotify(message: string, type: EMessageType) {
+  const pushNotify = (message: string, type: EMessageType) => {
     const messageItem: MessageItem = {
       text: message,
       id: `${performance.now()}-${messageCounter++}`,
@@ -113,13 +107,21 @@ export function useBlackJack() {
     }, 3000)
   }
 
-  function wsSend(route: EWsRoute, data?: any) {
+  const wsSend = (route: EWsRoute, data?: any) => {
     return ws?.send(route, data)
   }
 
-  //   const onReady = () => wsSend(EOperationCode.ClientReady)
-  //   const onHit = () => wsSend(EOperationCode.ClientHit)
-  //   const onStand = () => wsSend(EOperationCode.ClientStand)
+  const clientSend = (opcode: EOperationCode) => {
+    wsSend(EWsRoute.PlayBlackJack, {
+      opcode,
+      gametype: 1,
+      gamedata: {}
+    } as WSPlayGameReqResData)
+  }
+
+  const onReady = () => clientSend(EOperationCode.ClientReady)
+  const onHit = () => clientSend(EOperationCode.ClientHit)
+  const onStand = () => clientSend(EOperationCode.ClientStand)
 
   return {
     wsSend,
@@ -130,11 +132,15 @@ export function useBlackJack() {
     rooms,
 
     onLoginSuccess: loginSuccess$,
+    onRegisterSuccess: registerSuccess$,
     onConnectSuccess: connectSuccess$,
-    onJoinRoomSuccess: joinRoomSuccess$
+    onJoinRoomSuccess: joinRoomSuccess$,
 
-    // onReady,
-    // onHit,
-    // onStand
+    onSomeOneJoinRoom: someOneJoin$,
+    onUpdatePlayerDetail: updatePlayerDetail$,
+
+    onReady,
+    onHit,
+    onStand
   }
 }

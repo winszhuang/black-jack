@@ -28,42 +28,58 @@ func GenSuccessRes(route Route, data interface{}, message string) []byte {
 	}.Byte()
 }
 
-func SendErrRes(c IClient, msgCode OperationCode, errorCode WSError, message string) {
+func SendGameErrRes(c IClient, operationCode OperationCode, errorCode WSError, message string) {
 	c.WsSend(WSResponse{
 		Route:     PlayBlackJack,
-		Data:      nil,
 		Success:   false,
 		ErrorCode: errorCode,
 		Message:   message,
+		Data: WSPlayGameReqResData{
+			OpCode:   operationCode,
+			GameType: 1,
+			GameData: nil,
+		},
 	}.Byte())
 }
 
-func SendSuccessRes(c IClient, msgCode OperationCode, data interface{}, message string) {
+func SendGameSuccessRes(c IClient, operationCode OperationCode, data interface{}, message string) {
 	c.WsSend(WSResponse{
 		Route:     PlayBlackJack,
-		Data:      data,
 		Success:   true,
 		ErrorCode: 0,
 		Message:   message,
+		Data: WSPlayGameReqResData{
+			OpCode:   operationCode,
+			GameType: 1,
+			GameData: data,
+		},
 	}.Byte())
 }
 
-func BroadcastErrRes(game *Room, msgCode OperationCode, errorCode WSError, message string) {
+func BroadcastGameErrRes(game *Room, operationCode OperationCode, errorCode WSError, message string) {
 	game.Broadcast(WSResponse{
 		Route:     PlayBlackJack,
-		Data:      nil,
 		Success:   false,
 		ErrorCode: errorCode,
 		Message:   message,
+		Data: WSPlayGameReqResData{
+			GameData: nil,
+			OpCode:   operationCode,
+			GameType: 1,
+		},
 	}.Byte())
 }
 
-func BroadcastSuccessRes(game *Room, msgCode OperationCode, data interface{}, message string) {
+func BroadcastGameSuccessRes(game *Room, operationCode OperationCode, data interface{}, message string) {
 	game.Broadcast(WSResponse{
 		Route:     PlayBlackJack,
-		Data:      data,
 		Success:   true,
 		ErrorCode: 0,
 		Message:   message,
+		Data: WSPlayGameReqResData{
+			GameData: data,
+			OpCode:   operationCode,
+			GameType: 1,
+		},
 	}.Byte())
 }

@@ -7,7 +7,6 @@ import (
 	"black-jack/utils"
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
-	"strconv"
 	"sync"
 )
 
@@ -67,9 +66,9 @@ func (gc *GameCenter) RemoveGuest(c IClient) {
 	gc.mu.Unlock()
 }
 
-type RoomInfo struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+type LoginResponse struct {
+	Token  string    `json:"token"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func (gc *GameCenter) HandleLogin(c IClient, data interface{}) {
@@ -103,17 +102,31 @@ func (gc *GameCenter) HandleLogin(c IClient, data interface{}) {
 	}
 
 	// generate jwt
-	jwtStr, err := utils.CreateJWT(map[string]string{"userId": strconv.Itoa(user.ID)})
+	jwtStr, err := utils.CreateJWT(map[string]string{
+		"userId":   user.ID.String(),
+		"username": user.Name,
+	})
 	utils.AssertNoError(err)
 
-	c.WsSend(GenSuccessRes(Login, jwtStr, "登入成功"))
+	c.WsSend(GenSuccessRes(Login, LoginResponse{
+		Token:  jwtStr,
+		UserID: user.ID,
+	}, "登入成功"))
 
 	// 登入後加入
 	gc.AddClient(c)
 	c.SetProperty("isLogin", true)
+	c.UpdateLoginInfo(&LoginInfo{
+		UserName: user.Name,
+	})
 
 	// 發送所有房間資訊給玩家
 	c.WsSend(GenSuccessRes(GetRoomsInfo, gc.getRoomsInfo(), "所有房間資訊"))
+}
+
+type RoomInfo struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (gc *GameCenter) getRoomsInfo() []RoomInfo {
@@ -157,7 +170,7 @@ func (gc *GameCenter) HandleRegister(c IClient, data interface{}) {
 		return
 	}
 
-	c.WsSend(GenSuccessRes(Register, user.ID, "註冊成功"))
+	c.WsSend(GenSuccessRes(Register, true, "註冊成功"))
 }
 
 func (gc *GameCenter) HandleJoinRoom(c IClient, data interface{}) {
@@ -230,7 +243,7 @@ func (gc *GameCenter) HandlePlayBlackJack(c IClient, data interface{}) {
 		return
 	}
 
-	var req WSPlayGameReqData
+	var req WSPlayGameReqResData
 	if mapstructure.Decode(mapData, &req) != nil {
 		c.WsSend(GenErrResForInvalidRequest(PlayBlackJack))
 		return

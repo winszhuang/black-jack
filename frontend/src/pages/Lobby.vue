@@ -4,14 +4,7 @@ import { ERoute } from '@/enums/route'
 import { EWsRoute } from '@/enums/ws-route'
 import { router } from '@/router'
 
-const { rooms, onConnectSuccess, onJoinRoomSuccess, wsSend } = useBlackJack()
-
-onConnectSuccess.subscribe((info) => {
-  if (!info.is_login) {
-    router.push({ name: ERoute.Entrance })
-  }
-})
-
+const { rooms, onJoinRoomSuccess, wsSend } = useBlackJack()
 // #TODO 這邊為何不會過來?????
 onJoinRoomSuccess.subscribe((roomId) => {
   console.warn('roomId', roomId)

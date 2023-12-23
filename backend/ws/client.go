@@ -2,6 +2,7 @@ package ws
 
 import (
 	"black-jack/card"
+	"black-jack/models"
 	"black-jack/utils"
 	"encoding/json"
 	"errors"
@@ -65,7 +66,19 @@ type Client struct {
 	// user card data
 	playInfo *PlayInfo `json:"playInfo"`
 
+	// user current room
 	currRoom *Room
+
+	// info for login user
+	loginInfo *LoginInfo
+}
+
+func (c *Client) UpdateLoginInfo(info *LoginInfo) {
+	c.loginInfo = info
+}
+
+func (c *Client) GetLoginInfo() *LoginInfo {
+	return c.loginInfo
 }
 
 func (c *Client) IsLogin() bool {
@@ -83,6 +96,7 @@ func NewClient(center *GameCenter, conn *websocket.Conn, ID uuid.UUID) *Client {
 		send:         make(chan []byte, 256),
 		ID:           ID,
 		playInfo:     NewPlayInfo(),
+		loginInfo:    &LoginInfo{},
 		property:     map[string]interface{}{},
 		propertyLock: &sync.RWMutex{},
 	}
@@ -142,6 +156,7 @@ func (c *Client) GetGameDetail() ClientDetail {
 		ID:    c.ID,
 		Deck:  c.playInfo.deck,
 		State: c.playInfo.currentState,
+		Name:  c.GetLoginInfo().UserName,
 	}
 }
 
@@ -277,7 +292,8 @@ func (c *Client) Write(data []byte) {
 }
 
 type WsConnectedInfo struct {
-	IsLogin bool `json:"is_login"`
+	IsLogin bool   `json:"is_login"`
+	UserID  string `json:"user_id"`
 }
 
 // ServeWs handles websocket requests from the peer.
@@ -291,16 +307,17 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	// 玩家有遊戲中心 但遊戲中心暫不保存訪客資訊
 	client := NewClient(center, conn, uuid.New())
 
-	isLogin := checkUserLogin(r)
+	loginData, isLogin := checkUserLogin(r)
 	if isLogin {
+		client.UpdateLoginInfo(&LoginInfo{UserName: loginData.Name})
 		center.AddClient(client)
 		client.SetProperty("isLogin", true)
 		// 發送所有房間資訊給玩家
 		client.WsSend(GenSuccessRes(GetRoomsInfo, center.getRoomsInfo(), "所有房間資訊"))
-		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: true}, "使用者已經登入"))
+		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: true, UserID: loginData.ID.String()}, "使用者已經登入"))
 	} else {
 		center.AddGuest(client)
-		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: false}, "使用者尚未登入"))
+		client.WsSend(GenSuccessRes(WsConnected, WsConnectedInfo{IsLogin: false, UserID: ""}, "使用者尚未登入"))
 	}
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
@@ -308,19 +325,23 @@ func ServeWs(center *GameCenter, w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 }
 
-func checkUserLogin(r *http.Request) bool {
+func checkUserLogin(r *http.Request) (*models.User, bool) {
 	key, value, isExist := parseProtocol(r)
 	if isExist && key == "access_token" && value != "" {
-		_, err := utils.VerifyJWT(value)
-		if err == nil {
-			return true
-			//userIdStr := claims["userId"].(string)
-			//userId, _ := strconv.Atoi(userIdStr)
-			//client.SetProperty(key, value)
-			//client.SetProperty("userId", userId)
+		claims, err := utils.VerifyJWT(value)
+		if err != nil {
+			return &models.User{}, false
 		}
+
+		userIdStr := claims["userId"].(string)
+		userId, _ := uuid.Parse(userIdStr)
+		username := claims["username"].(string)
+		return &models.User{
+			ID:   userId,
+			Name: username,
+		}, true
 	}
-	return false
+	return nil, false
 }
 
 func parseProtocol(r *http.Request) (string, string, bool) {

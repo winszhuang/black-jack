@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import PlayerZone from '@/components/PlayerZone.vue'
 import { useBlackJack } from '@/composables/use-black-jack'
-import { ERoute } from '@/enums/route'
-import { router } from '@/router'
+import { notify } from '@/utils/toast'
 
-const { playersDetail, myId, messageList, onConnectSuccess, onReady, onHit, onStand } =
+const { playersDetail, myId, messageList, onSomeOneJoinRoom, onReady, onHit, onStand } =
   useBlackJack()
 
-onConnectSuccess.subscribe((info) => {
-  if (!info.is_login) {
-    router.push({ name: ERoute.Entrance })
-  }
+onSomeOneJoinRoom.subscribe((userData) => {
+  notify(`玩家[${userData.name}]進入房間 ~`)
 })
 </script>
 
@@ -24,7 +21,7 @@ onConnectSuccess.subscribe((info) => {
         v-for="player in playersDetail"
         :key="player.id"
         :user-id="player.id"
-        :name="player.id"
+        :name="player.name"
         :cards="player.deck"
         :user-state="player.state"
         :is-me="player.id === myId"
